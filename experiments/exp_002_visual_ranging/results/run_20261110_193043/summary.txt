@@ -8,3 +8,7 @@ spherical_camera_fov_rad=3.141500
 image_format=JPEG
 capture_period_simulated_s=1
 reference_distances=to_be_measured_offline
+status=completed
+capture_count=1
+images_saved=1
+simulation_time_s=0.032
