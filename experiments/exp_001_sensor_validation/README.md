@@ -30,9 +30,11 @@
 
 Los datos sostienen la aceptación de la **validación inicial de dispositivos** para las cuatro corridas realizadas. Cada ejecución dejó una sola muestra, por lo que no demuestra estabilidad durante una prueba prolongada. Los registros automáticos no asocian cada carpeta con un número de escenario; esa asociación no se infiere de los mundos.
 
-## Registro automático
+## Registro automático (cuando EXP-001 está habilitado)
 
-Al iniciar el controlador se crea una carpeta única `results/run_YYYYMMDD_HHMMSS/` (con sufijo si coincide el nombre) que contiene:
+El controlador actual está configurado para ejecutar únicamente el registro de EXP-002. Para nuevas corridas de EXP-001, hay que volver a habilitar explícitamente `Exp001Logger` en el punto de entrada y en el Makefile del controlador.
+
+Cuando se habilita, al iniciar el controlador se crea una carpeta única `results/run_YYYYMMDD_HHMMSS/` (con sufijo si coincide el nombre) que contiene:
 
 - `sensor_samples.csv`: una fila por segundo simulado con validez de GPS, brújula, encoders y sensores de distancia; pose, orientación, encoders; disponibilidad de imagen de ambas cámaras; y respuesta cruda, distancia calibrada, detección y saturación de cada `ds0`–`ds15`.
 - `summary.txt`: timestep, resoluciones de cámara, comando de parada, duración simulada, número de muestras y desplazamiento GPS observado.

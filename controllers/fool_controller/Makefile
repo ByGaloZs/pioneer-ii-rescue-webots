@@ -2,7 +2,6 @@ CXX_SOURCES = fool_controller.cpp \
               sensors/SensorManager.cpp \
               sensors/DistanceSensorCalibration.cpp \
               control/MotorController.cpp \
-              ../../experiments/exp_001_sensor_validation/src/Exp001Logger.cpp \
               ../../experiments/exp_002_visual_ranging/src/Exp002Logger.cpp
 
 null :=
