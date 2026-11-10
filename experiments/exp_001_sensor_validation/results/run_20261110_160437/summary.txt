@@ -1,0 +1,16 @@
+experiment_id=EXP-001
+run_directory=/home/galozs-dev/Documents/Master/Robotica/Webots/Proyecto_Final/experiments/exp_001_sensor_validation/results/run_20261110_160437
+scenario=not_provided_to_controller
+world_path=not_read_by_controller
+webots_timestep_ms=32
+front_camera_resolution=240x160
+spherical_camera_resolution=160x160
+motor_stop_commanded=true
+sample_period_simulated_s=1
+initial_pose_x_m=0.000000
+initial_pose_z_m=-6.000000
+simulation_time_s=0.032
+samples_written=1
+final_pose_x_m=0.000000
+final_pose_z_m=-6.000000
+gps_displacement_m=0.000000
