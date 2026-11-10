@@ -51,3 +51,8 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - For outbound navigation and the complete mission, schedule 10 scenarios × 3 verified starting poses, and record results per run. The source WBT robot pose is not the competition start pose.
 - Do not alter canonical `worlds/final_scenario*.wbt` when producing test variants; place reproducible variants outside the reference worlds and record parameters.
 - All ten experiments are currently planned, not executed. Never fabricate results.
+
+## Original scenario provenance and compatibility
+- The canonical `worlds/final_scenario01.wbt` through `final_scenario10.wbt` files are byte-for-byte copies of the user's original `Práctica06_src.zip` archive. Preserve them exactly; their checksums are listed in `worlds/README.md`.
+- Do not silently rewrite the WBT header, Viewpoint, robot pose, `Pioneer2` node, camera slots, lights or obstacle geometry. Any compatibility adaptation belongs in a separately documented test copy, not the canonical source.
+- These originals use `Pioneer2`, whereas `protos/Pioneer2_Robot.proto` also exists. Verify device-name and sensor-calibration compatibility in Webots before claiming runtime support; retain the calibrated controller source unchanged unless explicitly authorized.

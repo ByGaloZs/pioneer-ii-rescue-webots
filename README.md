@@ -130,6 +130,7 @@ Las carpetas marcadas como *planificadas* están reservadas para futuras impleme
 - [Protocolo experimental](docs/experiments.md): pruebas reproducibles y métricas.
 - [Plan maestro de pruebas](docs/test_plan.md): matriz EXP-001–010, escenarios, arranques y criterios.
 - [Catálogo de escenarios](docs/scenario_catalog.md): comparación estática de los diez archivos WBT.
+- [Mundos originales](worlds/README.md): procedencia, integridad y compatibilidad de los diez `.wbt` de `Práctica06_src.zip`.
 - [Experimentos](experiments/README.md): plantillas y registro de cada prueba.
 
 ## Estado de desarrollo

@@ -9,8 +9,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation 1 0 0 4.71238898038469
-  position 2.7158551780730688e-15 55.008202541384385 -6.531387153766674e-15
+  orientation 0.44075845275759873 0.7757408574239681 0.4516172145145204 4.610262405052916
+  position -19.895966772763337 28.801002758071142 6.379069135292285
 }
 Background {
   skyColor [
@@ -24,37 +24,37 @@ Fog {
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 3 6 5
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location -3 6 5
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location -3 6 -5
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 3 6 -5
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 3 6 -10
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location -3 6 -10
   radius 1000
 }
@@ -65,25 +65,25 @@ PointLight {
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 3 6 10
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 6 6 10
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 6 6 5
   radius 1000
 }
 PointLight {
   attenuation 0 0 12.56
-  intensity 10
+intensity 10
   location 6 6 0
   radius 1000
 }
@@ -1377,15 +1377,15 @@ DEF FLOOR Solid {
   }
   locked TRUE
 }
-Pioneer2_Robot {
-  translation -4.3 0 -5.6
+Pioneer2 {
+  translation 0 0 -9.05
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
-  controllerArgs []
   extensionSlot [
     Compass {
     }
     GPS {
+      resolution 3
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05

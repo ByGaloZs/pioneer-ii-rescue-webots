@@ -9,8 +9,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation 1 0 0 4.71238898038469
-  position -1.1572940228151848e-14 50.945213253183766 6.065770733851938e-15
+  orientation 0.52224053 0.64186541 0.56149232 4.3314023
+  position -5.4913973 33.773851 4.2251134
 }
 Background {
   skyColor [
@@ -710,7 +710,7 @@ DEF LARGE_BOX Solid {
 }
 DEF LARGE_BOX Solid {
   translation -0.0938684 0.3 1.26734
-  rotation -0.0842077223102619 -0.5079811318716477 0.8572422231584942 4.34648
+  rotation -0.084207722 -0.50798113 0.85724222 4.34648
   children [
     Shape {
       appearance Appearance {
@@ -731,7 +731,7 @@ DEF LARGE_BOX Solid {
 }
 DEF LARGE_BOX Solid {
   translation 1.72664 0.3 -6.40217
-  rotation -0.0842077223102619 -0.5079811318716477 0.8572422231584942 4.34648
+  rotation -0.084207722 -0.50798113 0.85724222 4.34648
   children [
     Shape {
       appearance Appearance {
@@ -899,7 +899,7 @@ DEF LARGE_BOX Solid {
 }
 DEF LARGE_BOX Solid {
   translation 3.11557 0.3 -6.16179
-  rotation 0 0.9578262299000326 0.2873480699700098 5.7
+  rotation 0 0.95782623 0.28734807 5.7
   children [
     Shape {
       appearance Appearance {
@@ -1297,7 +1297,7 @@ DEF STARTLINE Solid {
   ]
   name "solid55"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1319,7 +1319,7 @@ DEF LINE_M6 Solid {
   ]
   name "solid56"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1341,7 +1341,7 @@ DEF LINE_M4 Solid {
   ]
   name "solid57"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1363,7 +1363,7 @@ DEF LINE_M2 Solid {
   ]
   name "solid58"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1385,7 +1385,7 @@ DEF LINE_0 Solid {
   ]
   name "solid59"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1407,7 +1407,7 @@ DEF LINE_P2 Solid {
   ]
   name "solid60"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1429,7 +1429,7 @@ DEF LINE_P4 Solid {
   ]
   name "solid61"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1451,7 +1451,7 @@ DEF LINE_P6 Solid {
   ]
   name "solid62"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1473,7 +1473,7 @@ DEF FINISHLINE Solid {
   ]
   name "solid63"
   boundingObject Box {
-    size 1e-06 1e-06 1e-06
+    size 1e-6 1e-6 1e-6
   }
   locked TRUE
 }
@@ -1538,103 +1538,103 @@ DEF FLOOR Solid {
   }
   locked TRUE
 }
-Pioneer2_Robot {
-  translation -4.3 0 -5.6
-  rotation 0 1 0 3.141592653589793
-  controller "fool_controller"
-  controllerArgs []
-  extensionSlot [
-    Compass {
-    }
-    GPS {
-    }
-    DEF SPHERICAL_CAMERA Camera {
-      translation 0.025 0.44 -0.05
-      rotation 1 0 0 -1.5708
-      children [
-        DEF LENS Shape {
-          appearance Appearance {
-            material Material {
-              ambientIntensity 0.4
-              diffuseColor 0 0 0
-              shininess 0.8
-              specularColor 1 1 1
-            }
-          }
-          geometry Sphere {
-            radius 0.005
-            subdivision 2
-          }
-        }
-        DEF STRUCTURE_AXES Shape {
-          appearance Appearance {
-            material Material {
-              diffuseColor 0 0 0
-            }
-          }
-          geometry IndexedLineSet {
-            coord Coordinate {
-              point [
-                0 0 0.02
-                0.06 0 -0.2
-                -0.06 0 -0.2
-                0 0.06 -0.2
-                0 -0.05 -0.2
-              ]
-            }
-            coordIndex [
-              0, 1, 0, 2, 0, 3, 0, 4
-            ]
-          }
-        }
-        DEF CAMERA_SHAPE Transform {
-          translation 0 0 0.01
-          rotation 1 0 0 1.57
-          children [
-            DEF CAMERA_OUTLINE Shape {
-              appearance Appearance {
-                material Material {
-                  diffuseColor 1 1 0
-                }
-              }
-              geometry Cylinder {
-                height 0.02
-                radius 0.008
-              }
-            }
-          ]
-        }
-      ]
-      name "camera_s"
-      fieldOfView 3.1415
-      width 160
-      height 160
-      spherical TRUE
-      antiAliasing TRUE
-    }
-    DEF FORWARD_CAMERA Camera {
-      translation 0 0.255 -0.155
-      children [
-        Transform {
-          children [
-            Shape {
-              appearance Appearance {
-                material Material {
-                  diffuseColor 1 1 0
-                }
-              }
-              geometry Box {
-                size 0.02 0.02 0.03
-              }
-            }
-          ]
-        }
-      ]
-      name "camera_f"
-      fieldOfView 0.8
-      width 240
-      height 160
-      antiAliasing TRUE
-    }
-  ]
+Pioneer2 {
+translation 0 0 -9.05
+rotation 0 1 0 3.141592653589793
+controller "fool_controller"
+extensionSlot [
+Compass {
+}
+GPS {
+resolution 3
+}
+DEF SPHERICAL_CAMERA Camera {
+translation 0.025 0.44 -0.05
+rotation 1 0 0 -1.5708
+children [
+DEF LENS Shape {
+appearance Appearance {
+material Material {
+ambientIntensity 0.4
+diffuseColor 0 0 0
+shininess 0.8
+specularColor 1 1 1
+}
+}
+geometry Sphere {
+radius 0.005
+subdivision 2
+}
+}
+DEF STRUCTURE_AXES Shape {
+appearance Appearance {
+material Material {
+diffuseColor 0 0 0
+}
+}
+geometry IndexedLineSet {
+coord Coordinate {
+point [
+0 0 0.02
+0.06 0 -0.2
+-0.06 0 -0.2
+0 0.06 -0.2
+0 -0.05 -0.2
+]
+}
+coordIndex [
+0, 1, 0, 2, 0, 3, 0, 4
+]
+}
+}
+DEF CAMERA_SHAPE Transform {
+translation 0 0 0.01
+rotation 1 0 0 1.57
+children [
+DEF CAMERA_OUTLINE Shape {
+appearance Appearance {
+material Material {
+diffuseColor 1 1 0
+}
+}
+geometry Cylinder {
+height 0.02
+radius 0.008
+}
+}
+]
+}
+]
+name "camera_s"
+fieldOfView 3.1415
+width 160
+height 160
+spherical TRUE
+antiAliasing TRUE
+}
+DEF FORWARD_CAMERA Camera {
+translation 0 0.255 -0.155
+children [
+Transform {
+children [
+Shape {
+appearance Appearance {
+material Material {
+diffuseColor 1 1 0
+}
+}
+geometry Box {
+size 0.02 0.02 0.03
+}
+}
+]
+}
+]
+name "camera_f"
+fieldOfView 0.8
+width 240
+height 160
+antiAliasing TRUE
+}
+]
 }

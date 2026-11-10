@@ -9,8 +9,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation 1 0 0 4.71238898038469
-  position 7.011541472360642e-16 49.925041709153525 -3.53917411163025e-15
+  orientation -0.5094873405403066 -0.6887369507303992 -0.515813980547016 1.9418934
+  position -8.6885435 31.967301 1.5685876
 }
 Background {
   skyColor [
@@ -1835,15 +1835,15 @@ DEF FLOOR Solid {
   }
   locked TRUE
 }
-Pioneer2_Robot {
-  translation -3.9 0 -5.6
+Pioneer2 {
+  translation 0 0 -9.05
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
-  controllerArgs []
   extensionSlot [
     Compass {
     }
     GPS {
+      resolution 3
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05
