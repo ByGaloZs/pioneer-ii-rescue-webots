@@ -4,6 +4,59 @@
 
 **Escenarios:** 01 (paredes), 03 (focos y cajas), 07 (niebla de rango bajo), 08 (otra niebla e iluminación), 10 (42 cajas).
 
+## Prueba comparativa de dirección de cámara — lista para ejecutar
+
+**Objetivo inmediato:** comprobar si cambiar únicamente la inclinación de la cámara esférica aumenta el suelo y los obstáculos visibles y reduce la autooclusión. **No es todavía una prueba de distancias en metros.**
+
+En el directorio [`worlds/`](../../worlds/) se incluyen **tres mundos piloto versionados**:
+
+| Mundo | Rotación de `camera_s` | GPS | Robot |
+| --- | --- | --- | --- |
+| `exp002_camera_01_tilt45.wbt` | `1 0 0 -0.7854` (45°) | `resolution -1` | (X=0, Z=−8.8, yaw=0) |
+| `exp002_camera_01_tilt30.wbt` | `1 0 0 -0.5236` (30°) | `resolution -1` | Misma pose |
+| `exp002_camera_01_horizontal.wbt` | `1 0 0 0` (horizontal nominal) | `resolution -1` | Misma pose |
+
+Los tres derivan del **escenario 01 actual** y mantienen su geometría, iluminación, dispositivos y controlador. El único cambio del sensor GPS es su resolución: según la [referencia de Webots GPS R2020b](https://cyberbotics.com/doc/reference/gps?version=R2020b), `-1` desactiva la cuantización. **La orientación y la cobertura reales de la cámara deben comprobarse con imágenes de Webots.** Los diez archivos `final_scenario*.wbt` no se editan.
+
+### Procedimiento (abrir los mundos ya incluidos, no hace falta generarlos)
+
+1. Desde la raíz del proyecto: `git pull origin main`.
+2. Abrir **primero** `worlds/exp002_camera_01_tilt45.wbt` en Webots, compilar/ejecutar `fool_controller`. El robot debe permanecer inmóvil.
+3. Confirmar en consola `[START]` y en `frames.csv` **Z cercano a −8.8**, sin redondeo en saltos de 3 m. Si difiere, detener y verificar mundo abierto/estado guardado.
+4. Copiar o registrar el **nombre de la corrida** `results/run_...` y su inclinación. Guardar al menos una imagen `frame_000000.jpg` por variante.
+5. Repetir desde un **reinicio del mundo** con `exp002_camera_01_tilt30.wbt` y `exp002_camera_01_horizontal.wbt`. No cambiar posición, orientación, materiales ni iluminación.
+6. Comparar visualmente las tres imágenes brutas: fracción visible de carrocería, suelo, pared posterior y posibles transiciones suelo-obstáculo. Anotar resultados y condiciones en la siguiente tabla.
+
+| Variante | Run ID | GPS Z (m) | Carrocería visible | Suelo visible | Pared visible | Problemas |
+| --- | --- | ---: | --- | --- | --- | --- |
+| 45° | pendiente | — | — | — | — | — |
+| 30° | pendiente | — | — | — | — | — |
+| Horizontal | pendiente | — | — | — | — | — |
+
+**Importante:** la antigua máscara `config/self_occlusion_pilot.json` fue propuesta para la cámara mirando hacia abajo. **No reutilizarla automáticamente** en las nuevas inclinaciones: crearía mediciones engañosas. Primero revisar las imágenes reales y, si se aplica `segment_image.py`, generar/ajustar una máscara independiente **por orientación**. La máscara debe permanecer `verified=false` hasta inspección manual.
+
+Los sectores `usable` son fronteras visuales, **no** garantía de terreno libre; el campo oculto por el robot permanece `unknown`. No estimar distancias en metros ni declarar EXP-002 `accepted` por completar esta comparación.
+
+### Reproducibilidad
+
+Los mundos de comparación ya están incluidos en GitHub. Para regenerarlos desde la geometría del `final_scenario01.wbt` existente:
+
+```bash
+python3 experiments/exp_002_visual_ranging/src/create_pilot_world.py
+```
+
+El generador compara el contenido con los archivos existentes: si coinciden, no escribe nada; si son diferentes, falla antes de sobrescribirlos. Para volver a crearlos voluntariamente después de cambiar parámetros del experimento, usar `--overwrite` y registrar la modificación. Se puede elegir otra carpeta mediante `--output-dir`. **No utilizar este comando para reescribir los mundos `final_scenario*.wbt`.**
+
+Pruebas offline del generador:
+
+```bash
+python3 -m unittest discover -s experiments/exp_002_visual_ranging/tests -v
+```
+
+Las pruebas sintéticas verifican sustitución de pose, GPS, rotación de cámara, comportamiento idempotente y rechazo de archivos incompatibles. **No equivalen a ejecutar los mundos en Webots.**
+
+---
+
 ## Procedimiento
 1. Capturar imágenes estáticas a distancias y orientaciones conocidas de paredes y cajas, usando posiciones de prueba sin colisiones.
 2. Segmentar suelo/obstáculo y medir límites radiales por sectores. Calibrar píxeles a distancia solo cuando exista relación verificable.
@@ -32,7 +85,7 @@ El código Python es **independiente del controlador Webots**:
 
 - [`src/camera_projection.py`](src/camera_projection.py): transformación de píxeles a coordenadas angulares de la imagen según la descripción de proyección esférica de Webots, muestreo radial de sectores y validación geométrica. La rotación física de la cámara y la correspondencia entre sector visual y rumbo del robot **aún deben comprobarse con capturas reales**.
 - [`src/segment_image.py`](src/segment_image.py): segmentación HSV conservadora en cuatro clases (`unknown`, `floor`, `obstacle`, `victim`); busca suelo candidato en un anillo **fuera de la carrocería enmascarada** y exige acuerdo entre tres rayos por sector. Devuelve `unknown` ante oclusiones no modeladas, sombras o límites ambiguos.
-- [`tests/test_exp002_vision.py`](tests/test_exp002_vision.py): ocho pruebas unitarias con imágenes **sintéticas**, que comprueban coordenadas, clasificación, fronteras y tratamiento de incertidumbre.
+- [`tests/test_exp002_vision.py`](tests/test_exp002_vision.py): pruebas unitarias con imágenes **sintéticas**, que comprueban coordenadas, clasificación, fronteras y tratamiento de incertidumbre.
 
 Los valores de confianza son **indicadores heurísticos**, no probabilidades calibradas. `boundary_px` expresa distancia **en píxeles respecto al centro de imagen**; **no es una distancia en metros**. Los ángulos de los sectores también pertenecen al plano de la imagen y no se deben utilizar como orientaciones globales sin registrar el montaje de la cámara.
 
@@ -64,50 +117,17 @@ El comando imprime JSON y, con `--output-dir`, guarda `mask.png`, `overlay.png`,
 4. Implementar análisis automático por corrida y generación de `visual_measurements.csv` con distancias/errores, dejando `unknown` sin distancia.
 5. Verificar robustez en 03, 07, 08 y 10. Solo entonces decidir si integrar la visión en el mapeo.
 
-La validación local del prototipo y la exclusión de carrocería incluye **15 pruebas unitarias sintéticas y una ejecución del CLI con una imagen sintética**. **No** implica rendimiento demostrado en Webots ni aceptación de EXP-002.
+La validación anterior de segmentación incluyó 15 pruebas unitarias sintéticas; el generador de los tres mundos cuenta además con cuatro pruebas offline propias. La ejecución comparativa en Webots está pendiente. **No** implica rendimiento demostrado en Webots ni aceptación de EXP-002.
 
 ### Primera inspección de imagen Webots
 
-La captura `results/run_20261110_174034/frame_000000.jpg` se guardó correctamente (160 × 160 px, FOV 3.1415 rad; pose registrada `(0,-6)`, rumbo `0 rad`). El escenario no quedó etiquetado en los metadatos. El análisis produjo 13 sectores `unknown` por transición ambigua y tres límites en sectores 12–14, a 58, 60 y 66 px, confianza heurística 0.6. **Los 16 sectores tienen `near_field_occluded=true`.**
+La captura anterior, con GPS cuantizado a 3 metros, `results/run_20261110_174034/frame_000000.jpg` se guardó correctamente (160 × 160 px, FOV 3.1415 rad; pose registrada `(0,-6)`, rumbo `0 rad`). El escenario no quedó etiquetado en los metadatos. El análisis produjo 13 sectores `unknown` por transición ambigua y tres límites en sectores 12–14, a 58, 60 y 66 px, confianza heurística 0.6. **Los 16 sectores tienen `near_field_occluded=true`.**
 
 El detalle está en [`analysis_summary.md`](results/run_20261110_174034/analysis_summary.md). Esta inspección no valida la máscara provisional ni la distancia métrica; los tres límites pueden corresponder a la silueta visible del robot. Revisar la máscara con la imagen real antes de marcarla como verificada.
 
 
-## Piloto de carrocería y pared posterior — escenario 01
+## Nota sobre la captura anterior
 
-La cámara esférica **ve parte de la propia carrocería**. Una muestra central de color gris puede ser robot, no suelo. Antes de calibrar distancia, hay que excluir dicha silueta explícitamente y comprobar qué zonas son realmente observables.
+La corrida `run_20261110_174034` se capturó con la cámara mirando hacia abajo y el GPS del mundo con resolución de 3 m. El registro `Z=-6` fue una lectura cuantizada, no prueba de una pose real distinta. Esa imagen mostró principalmente la carrocería y motivó el experimento comparativo. Sus tres límites visuales (sectores 12–14) no se aceptan como medidas de pared ni como distancias.
 
-### Paso A: preparar la copia del mundo (desde la raíz del repositorio)
-
-```bash
-python3 experiments/exp_002_visual_ranging/src/create_pilot_world.py
-```
-
-Este comando **no modifica** `worlds/final_scenario01.wbt`: crea `worlds/exp002_pilot_01.wbt` con el robot `Pioneer2` en `translation 0 0 -8.8` y `rotation 0 1 0 0`. Es la franja central próxima a la pared posterior. A modo de referencia offline: cara interior de la pared próxima a Z ≈ −9.8, separación horizontal nominal **centro de robot–pared ≈ 1.0 m**. **No confundir con la distancia óptica exacta de la cámara al muro**. Verificar ausencia de colisiones y orientación real en Webots.
-
-Si se necesita otra pose, borrar **solo** la copia generada y ejecutar con `--z`, `--x` y `--yaw`; conservar el mundo original sin cambios.
-
-### Paso B: capturar una imagen real
-
-1. Abrir `worlds/exp002_pilot_01.wbt` en Webots y compilar `fool_controller`.
-2. Iniciar la simulación. El controlador actual debe dejar **las ruedas detenidas**.
-3. Localizar en consola `[EXP002_LOG]` y, después, el archivo `experiments/exp_002_visual_ranging/results/run_.../frame_000000.jpg`.
-4. Registrar manualmente `scenario=01`, `pose=(0,-8.8)`, `yaw=0` y la distancia de referencia independiente cuando se mida. El logger no lee datos de los mundos.
-
-### Paso C: revisar la máscara provisional
-
-El archivo `config/self_occlusion_pilot.json` contiene **una elipse central de ejemplo, no una máscara verificada**. Ejecutar el comando de segmentación mostrado arriba y abrir `occlusion_mask.png` y `overlay.png`.
-
-- Editar `center` y `radii` en la elipse utilizando **coordenadas normalizadas entre 0 y 1**, o sustituir la elipse por regiones `polygon` con una lista de puntos normalizados.
-- La máscara debe abarcar la carrocería visible (incluidos bordes), **sin tapar el suelo válido**. Si la silueta no está clara o no se puede separar, ampliar `unknown` en lugar de adivinar.
-- **No marcar `verified=true` hasta inspeccionar visualmente la máscara sobre imágenes reales de la cámara**. Repetir con otra orientación para comprobar que la silueta se mantiene.
-- Si el robot oculta un sector entero, su resultado será `unknown`; no se convertirá a espacio libre.
-- Un sector con `status=usable` y `near_field_occluded=true` **solo tiene un límite visible más lejos de la carrocería**. La zona escondida sigue siendo desconocida; nunca alimentar ese dato directamente a un planificador.
-
-### Paso D: interpretar el resultado
-
-`boundaries.json` registra por sector `boundary_px`, `status`, `unknown_reason`, `near_field_occluded` y `first_visible_floor_px`. Los sectores representan **ángulos en la imagen**, no direcciones del robot. La salida **no estima distancias en metros** y no actualiza `visual_measurements.csv`: la calibración y las métricas de EXP-002 siguen pendientes.
-
-### Criterio de revisión del piloto
-
-Solo avanzar a calibración cuando las capturas reales permitan reconocer suelo, pared y carrocería **de forma reproducible**, sin falsos pasos libres. Si la elipse provisional no coincide con la silueta, ajustarla en JSON y documentar el cambio junto con el `run_id`.
+La máscara `config/self_occlusion_pilot.json` continúa **sin verificar** y solo corresponde a la hipótesis de cámara hacia abajo. Para 45°, 30° y horizontal se deben revisar primero las imágenes brutas y, si procede, crear máscaras independientes antes de ejecutar segmentación y calibración. Mantener los sectores ambiguos en estado `unknown`.
