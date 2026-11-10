@@ -68,3 +68,10 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - In each variant, GPS resolution is `-1`, robot starts at `(0, 0, -8.8)` with yaw 0, and only `camera_s` tilt differs. Do not infer physical bearing without verifying camera extrinsics.
 - Keep an orientation-specific chassis mask if a mask is needed; do not transfer the old downward-facing mask unchanged.
 - Generate/check variants with `experiments/exp_002_visual_ranging/src/create_pilot_world.py`; preserve canonical worlds and captured evidence.
+
+## EXP-002 calibration capture fixture
+- Three versioned pilot worlds: `worlds/exp002_calibration_01_{p1,p2,p3}.wbt`. They are offline-derived test variants only and have unique `controllerArgs` trial labels.
+- Do not expose wall geometry or target distances to the runtime controller. The label is recording metadata, not a measurement or world-identification mechanism.
+- Only the calibration runs start capture after 1 simulated second and finalize on the first saved frame. Noncalibration runs remain periodic.
+- The visual camera markers are removed only in calibration copies; no canonical WBT is changed.
+- Distances in the README refer to robot-center horizontal reference, not the camera optical ray. Do not claim metric ranging or a passing Webots run without observations.

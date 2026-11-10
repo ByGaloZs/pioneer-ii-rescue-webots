@@ -12,15 +12,18 @@ class Exp002Logger {
  public:
   Exp002Logger();
 
-  bool initialize(int timeStepMs, const webots::Camera *sphericalCamera);
+  bool initialize(int timeStepMs, const webots::Camera *sphericalCamera,
+                  const std::string &trialId, bool singleShot);
   bool isOpen() const;
   const std::string &runDirectory() const;
-  void capture(double simulationTimeS, const webots::Camera *sphericalCamera,
+  bool capture(double simulationTimeS, const webots::Camera *sphericalCamera,
                const SensorSnapshot &snapshot);
   void finish(double simulationTimeS);
 
  private:
   std::string _runDirectory;
+  std::string _trialId;
+  bool _singleShot;
   std::ofstream _frames;
   std::ofstream _measurements;
   std::ofstream _summary;

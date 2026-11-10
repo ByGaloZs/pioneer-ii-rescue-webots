@@ -37,3 +37,7 @@ Consulta también el [catálogo estructural](../docs/scenario_catalog.md) y el [
 ## Mundos de prueba EXP-002 (no son escenarios originales)
 
 Se incluyen tres copias de `final_scenario01.wbt` de la versión de desarrollo actual: [`exp002_camera_01_tilt45.wbt`](exp002_camera_01_tilt45.wbt), [`exp002_camera_01_tilt30.wbt`](exp002_camera_01_tilt30.wbt) y [`exp002_camera_01_horizontal.wbt`](exp002_camera_01_horizontal.wbt). Usan la misma pose del robot `(X=0, Z=-8.8, yaw=0)` y GPS `resolution -1`; solo difiere la rotación de `camera_s`. No usar estas copias como prueba de que los diez mundos originales permiten alterar sensores. Consulta [EXP-002](../experiments/exp_002_visual_ranging/README.md).
+
+### Fase 2: posiciones de calibración (solo copias)
+
+Se incorporaron `exp002_calibration_01_p1.wbt`, `exp002_calibration_01_p2.wbt` y `exp002_calibration_01_p3.wbt` para el estudio del muro posterior del escenario 01. Sus poses Z son −9.0, −8.8 y −8.3 m; todos usan cámara a −30°, GPS sin cuantización y no incluyen los cuatro visuales de diagnóstico dentro de la cámara. El robot incluye `controllerArgs` para etiquetar la corrida, no para suministrar geometría. Los diez `final_scenario*.wbt` permanecen intactos. Consulta [fase 2 de EXP-002](../experiments/exp_002_visual_ranging/README.md).
