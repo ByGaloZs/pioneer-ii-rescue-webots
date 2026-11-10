@@ -6,6 +6,7 @@
 #include "control/MotorController.h"
 #include "sensors/SensorManager.h"
 #include "../../experiments/exp_001_sensor_validation/src/Exp001Logger.h"
+#include "../../experiments/exp_002_visual_ranging/src/Exp002Logger.h"
 
 int main() {
   webots::Robot robot;
@@ -42,6 +43,16 @@ int main() {
               << std::endl;
   }
 
+  Exp002Logger visualLogger;
+  if (!visualLogger.initialize(timeStep, spherical)) {
+    std::cerr << "EXP-002 image logging unavailable; camera diagnostics "
+                 "continue on console."
+              << std::endl;
+  } else {
+    std::cout << "[EXP002_LOG] Writing spherical captures to "
+              << visualLogger.runDirectory() << std::endl;
+  }
+
   bool startPoseCaptured = false;
   double nextReportS = 0.0;
   while (robot.step(timeStep) != -1) {
@@ -62,6 +73,8 @@ int main() {
       logger.writeSample(timeS, snapshot, front->getImage() != 0,
                          spherical->getImage() != 0);
     }
+    if (visualLogger.isOpen())
+      visualLogger.capture(timeS, spherical, snapshot);
     std::cout << std::fixed << std::setprecision(3)
               << "[SENSORS] t=" << timeS
               << " gps=" << (snapshot.gpsValid ? "ok" : "invalid")
@@ -76,6 +89,7 @@ int main() {
 
   motors.stop();
   logger.finish(robot.getTime());
+  visualLogger.finish(robot.getTime());
   sensors.shutdown();
   return 0;
 }
