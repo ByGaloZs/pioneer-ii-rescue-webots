@@ -56,3 +56,9 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - The canonical `worlds/final_scenario01.wbt` through `final_scenario10.wbt` files are byte-for-byte copies of the user's original `Práctica06_src.zip` archive. Preserve them exactly; their checksums are listed in `worlds/README.md`.
 - Do not silently rewrite the WBT header, Viewpoint, robot pose, `Pioneer2` node, camera slots, lights or obstacle geometry. Any compatibility adaptation belongs in a separately documented test copy, not the canonical source.
 - These originals use `Pioneer2`, whereas `protos/Pioneer2_Robot.proto` also exists. Verify device-name and sensor-calibration compatibility in Webots before claiming runtime support; retain the calibrated controller source unchanged unless explicitly authorized.
+
+## EXP-002 self-occlusion pilot
+- `camera_s` includes visible robot body. Never classify its occluded pixels as free floor or convert them to range measurements.
+- `experiments/exp_002_visual_ranging/config/self_occlusion_pilot.json` is an **unverified example** until inspected against real spherical frames. Keep excluded pixels unknown.
+- Generate any test variant using `src/create_pilot_world.py`, never overwrite the ten canonical `.wbt` files.
+- A usable image-space boundary does not imply near-field safety or metric range. Calibration, image registration and metrics are still pending.

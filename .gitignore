@@ -22,3 +22,6 @@ experiments/**/screenshots/
 Thumbs.db
 __pycache__/
 *.pyc
+
+# Automatically generated EXP-002 test world (canonical WBT stays versioned)
+worlds/exp002_pilot_*.wbt

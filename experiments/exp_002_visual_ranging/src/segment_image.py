@@ -17,6 +17,8 @@ from dataclasses import asdict, dataclass
 from enum import IntEnum
 from pathlib import Path
 
+from self_occlusion import load_occlusion_mask
+
 import cv2
 import numpy as np
 
@@ -42,7 +44,7 @@ class SegmentationConfig:
     object_min_saturation: int = 65
     object_min_value: int = 55
     floor_seed_inner_radius_px: int = 3
-    floor_seed_outer_radius_px: int = 16
+    floor_seed_outer_radius_px: int = 65
     floor_min_seed_pixels: int = 12
 
     def __post_init__(self) -> None:
@@ -65,6 +67,7 @@ class SegmentationConfig:
 class SegmentationResult:
     labels: np.ndarray  # uint8 image with PixelClass values
     confidence: np.ndarray  # float32 heuristic evidence, NOT probability
+    occluded: np.ndarray | None = None  # True means robot body hides this pixel
 
     def mask(self, pixel_class: PixelClass) -> np.ndarray:
         return self.labels == pixel_class
@@ -78,16 +81,20 @@ class SectorBoundary:
     confidence: float
     status: str  # "usable" or "unknown" (never "free")
     unknown_reason: str | None
+    near_field_occluded: bool = False
+    first_visible_floor_px: float | None = None
 
 
 def segment_image(
-    image_bgr: np.ndarray, config: SegmentationConfig | None = None
+    image_bgr: np.ndarray,
+    config: SegmentationConfig | None = None,
+    occlusion_mask: np.ndarray | None = None,
 ) -> SegmentationResult:
     """Label visible surfaces; keep all unrecognized/ambiguous pixels unknown.
 
-    Only a low-saturation component connected to the central seed annulus can
-    be tagged as candidate floor. This mitigates classifying disconnected grey
-    regions as ground, but does not make the floor class navigation-safe.
+    Candidate floor must touch a seed annulus OUTSIDE any occlusion mask.
+    A masked region remains unknown, even if its color resembles floor.
+    Neither candidate floor nor detected boundary establishes traversability.
     """
     config = config or SegmentationConfig()
     if (
@@ -100,17 +107,28 @@ def segment_image(
         raise ValueError("Expected a non-empty uint8 BGR image with 3 channels")
 
     height, width = image_bgr.shape[:2]
+    if occlusion_mask is None:
+        occluded = np.zeros((height, width), dtype=bool)
+    else:
+        if (
+            not isinstance(occlusion_mask, np.ndarray)
+            or occlusion_mask.shape != (height, width)
+            or occlusion_mask.dtype != np.bool_
+        ):
+            raise ValueError("occlusion_mask must be a boolean mask matching the image")
+        occluded = occlusion_mask.copy()
+
     hsv = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2HSV)
     hue = hsv[:, :, 0]
     saturation = hsv[:, :, 1]
     value = hsv[:, :, 2]
 
-    floor_candidate = (
+    floor_candidate = (~occluded) & (
         (saturation <= config.floor_max_saturation)
         & (value >= config.floor_min_value)
         & (value <= config.floor_max_value)
     )
-    object_candidate = (
+    object_candidate = (~occluded) & (
         (saturation >= config.object_min_saturation)
         & (value >= config.object_min_value)
     )
@@ -134,8 +152,8 @@ def segment_image(
     labels[unambiguous_green] = PixelClass.VICTIM
     confidence[unambiguous_green] = 0.85
 
-    # The camera looks toward the floor; anchor candidate grey floor close to
-    # the image center. Avoid assuming that other grey objects are walkable.
+    # Start floor evidence in a broad annulus outside the excluded robot body.
+    # Never infer floor in hidden pixels or disconnected grey components.
     _, connected = cv2.connectedComponents(floor_candidate.astype(np.uint8), connectivity=8)
     cx, cy = (width - 1) / 2.0, (height - 1) / 2.0
     yy, xx = np.ogrid[:height, :width]
@@ -143,6 +161,7 @@ def segment_image(
     seed_region = (
         (radius_squared >= config.floor_seed_inner_radius_px**2)
         & (radius_squared <= config.floor_seed_outer_radius_px**2)
+        & ~occluded
     )
     seeded_ids = connected[floor_candidate & seed_region]
     if seeded_ids.size:
@@ -153,7 +172,7 @@ def segment_image(
             labels[main_floor] = PixelClass.FLOOR
             confidence[main_floor] = 0.60
 
-    return SegmentationResult(labels=labels, confidence=confidence)
+    return SegmentationResult(labels=labels, confidence=confidence, occluded=occluded)
 
 
 def _detect_ray_boundary(
@@ -161,25 +180,42 @@ def _detect_ray_boundary(
     ray_samples: list[tuple[int, int, int]],
     min_floor_pixels: int,
     min_obstacle_pixels: int,
-) -> tuple[int | None, float, str | None]:
+) -> tuple[int | None, float, str | None, bool, int | None]:
+    """Scan past a strictly leading self-occlusion, then require visible floor.
+
+    An obstacle boundary after the body can be measured in pixels, but the
+    hidden near-field remains unknown and cannot be used to clear a route.
+    """
     floor_run = 0
+    first_floor_radius: int | None = None
+    occluded_prefix = False
+    occluded = segmentation.occluded
     for index, (radius, x, y) in enumerate(ray_samples):
+        if occluded is not None and occluded[y, x]:
+            if floor_run > 0:
+                return None, 0.0, "occlusion_after_floor", True, first_floor_radius
+            occluded_prefix = True
+            continue
         label = segmentation.labels[y, x]
         if label == PixelClass.FLOOR:
+            if first_floor_radius is None:
+                first_floor_radius = radius
             floor_run += 1
             continue
         if label == PixelClass.UNKNOWN:
-            return None, 0.0, "ambiguous_transition"
+            return None, 0.0, "ambiguous_transition", occluded_prefix, first_floor_radius
         if floor_run < min_floor_pixels:
-            return None, 0.0, "insufficient_near_floor"
+            return None, 0.0, "insufficient_visible_floor", occluded_prefix, first_floor_radius
         subsequent = ray_samples[index : index + min_obstacle_pixels]
         if len(subsequent) < min_obstacle_pixels or any(
-            segmentation.labels[sy, sx] not in (PixelClass.OBSTACLE, PixelClass.VICTIM)
+            (occluded is not None and occluded[sy, sx])
+            or segmentation.labels[sy, sx] not in (PixelClass.OBSTACLE, PixelClass.VICTIM)
             for _, sx, sy in subsequent
         ):
-            return None, 0.0, "unstable_obstacle_boundary"
-        return radius, float(min(0.60, segmentation.confidence[y, x])), None
-    return None, 0.0, "no_boundary_in_frame"
+            return None, 0.0, "unstable_obstacle_boundary", occluded_prefix, first_floor_radius
+        return (radius, float(min(0.60, segmentation.confidence[y, x])),
+                None, occluded_prefix, first_floor_radius)
+    return None, 0.0, "no_boundary_in_frame", occluded_prefix, first_floor_radius
 
 
 def extract_radial_boundaries(
@@ -194,8 +230,9 @@ def extract_radial_boundaries(
 ) -> list[SectorBoundary]:
     """Detect first contiguous floor-to-object boundary for each IMAGE sector.
 
-    All rays in a sector must agree; unknown/occluded rays make the sector
-    unknown. A 'usable' boundary is only a visual pixel measurement.
+    All rays must agree. A KNOWN leading self-occlusion may be skipped only
+    to measure the farther boundary; unknown pixels after visibility begins
+    invalidate the ray. Usable does NOT mean the near field is traversable.
     """
     if segmentation.labels.shape != (projection.height, projection.width):
         raise ValueError("Segmentation dimensions do not match projection")
@@ -212,11 +249,16 @@ def extract_radial_boundaries(
         radius_values: list[int] = []
         confidence_values: list[float] = []
         reasons: list[str] = []
+        near_occlusions: list[bool] = []
+        first_floor_values: list[int] = []
         for angle in rays:
             samples = projection.radial_pixels(angle, start_radius_px)
-            boundary, confidence, reason = _detect_ray_boundary(
+            boundary, confidence, reason, occluded_prefix, first_floor = _detect_ray_boundary(
                 segmentation, samples, min_floor_pixels, min_obstacle_pixels
             )
+            near_occlusions.append(occluded_prefix)
+            if first_floor is not None:
+                first_floor_values.append(first_floor)
             if boundary is None:
                 reasons.append(reason or "unknown_observation")
             else:
@@ -226,16 +268,19 @@ def extract_radial_boundaries(
         image_angle_deg = sector_id * 360.0 / sector_count
         if reasons:
             observations.append(SectorBoundary(
-                sector_id, image_angle_deg, None, 0.0, "unknown", reasons[0]
+                sector_id, image_angle_deg, None, 0.0, "unknown", reasons[0],
+                any(near_occlusions), None
             ))
         elif max(radius_values) - min(radius_values) > max_ray_disagreement_px:
             observations.append(SectorBoundary(
-                sector_id, image_angle_deg, None, 0.0, "unknown", "inconsistent_rays"
+                sector_id, image_angle_deg, None, 0.0, "unknown", "inconsistent_rays",
+                any(near_occlusions), None
             ))
         else:
             observations.append(SectorBoundary(
                 sector_id, image_angle_deg, float(np.median(radius_values)),
-                float(min(confidence_values)), "usable", None
+                float(min(confidence_values)), "usable", None,
+                any(near_occlusions), float(max(first_floor_values))
             ))
     return observations
 
@@ -255,6 +300,10 @@ def render_overlay(
         [40, 180, 40],     # victim: green
     ], dtype=np.uint8)
     visualization = cv2.addWeighted(image_bgr, 0.45, palette[segmentation.labels], 0.55, 0)
+    if segmentation.occluded is not None and segmentation.occluded.any():
+        mask = segmentation.occluded.astype(np.uint8)
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(visualization, contours, -1, (255, 0, 255), 1)
     if boundaries:
         height, width = image_bgr.shape[:2]
         cx, cy = (width - 1) / 2.0, (height - 1) / 2.0
@@ -265,7 +314,10 @@ def render_overlay(
             angle = radians(boundary.image_angle_deg)
             x = round(cx + boundary.boundary_px * cos(angle))
             y = round(cy + boundary.boundary_px * sin(angle))
-            cv2.line(visualization, (round(cx), round(cy)), (x, y), (0, 255, 255), 1)
+            visible_start = boundary.first_visible_floor_px or 0.0
+            sx = round(cx + visible_start * cos(angle))
+            sy = round(cy + visible_start * sin(angle))
+            cv2.line(visualization, (sx, sy), (x, y), (0, 255, 255), 1)
             cv2.circle(visualization, (x, y), 3, (0, 0, 255), -1)
     return visualization
 
@@ -275,17 +327,24 @@ def main() -> int:
     parser.add_argument("image", type=Path, help="JPEG image from Exp002Logger")
     parser.add_argument("--output-dir", type=Path, help="Optional directory for PNG and JSON")
     parser.add_argument("--sectors", type=int, default=16)
+    parser.add_argument(
+        "--mask-config", type=Path, required=True,
+        help="JSON self-occlusion mask; mandatory to avoid mislabeling chassis as floor",
+    )
     args = parser.parse_args()
 
     image = cv2.imread(str(args.image), cv2.IMREAD_COLOR)
     if image is None:
         parser.error(f"Cannot load image: {args.image}")
     projection = CameraProjection(width=image.shape[1], height=image.shape[0])
-    segmentation = segment_image(image)
+    occlusion_mask = load_occlusion_mask(args.mask_config, image.shape[:2])
+    segmentation = segment_image(image, occlusion_mask=occlusion_mask)
     boundaries = extract_radial_boundaries(segmentation, projection, sector_count=args.sectors)
     data = {
         "image_file": str(args.image),
-        "interpretation": "Image-space boundaries only; NO metric calibration",
+        "interpretation": "Image-space boundaries only; NO metric calibration or near-field clearance",
+        "occlusion_mask_config": str(args.mask_config),
+        "occlusion_pixels": int(occlusion_mask.sum()),
         "sectors": [asdict(item) for item in boundaries],
     }
     print(json.dumps(data, indent=2))
@@ -295,6 +354,8 @@ def main() -> int:
         if not cv2.imwrite(str(args.output_dir / "overlay.png"), overlay):
             raise RuntimeError("Unable to write overlay.png")
         color_mask = np.array([[30, 30, 30], [130, 130, 130], [220, 180, 30], [40, 180, 40]], dtype=np.uint8)
+        if not cv2.imwrite(str(args.output_dir / "occlusion_mask.png"), (occlusion_mask * 255).astype(np.uint8)):
+            raise RuntimeError("Unable to write occlusion_mask.png")
         if not cv2.imwrite(str(args.output_dir / "mask.png"), color_mask[segmentation.labels]):
             raise RuntimeError("Unable to write mask.png")
         (args.output_dir / "boundaries.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")

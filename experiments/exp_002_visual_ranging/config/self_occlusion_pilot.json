@@ -1,0 +1,12 @@
+{
+  "coordinate_system": "normalized",
+  "verified": false,
+  "purpose": "Provisional central chassis exclusion for EXP-002. Inspect occlusion_mask.png against the real spherical image and adjust before measurement.",
+  "regions": [
+    {
+      "shape": "ellipse",
+      "center": [0.50, 0.50],
+      "radii": [0.19, 0.19]
+    }
+  ]
+}
