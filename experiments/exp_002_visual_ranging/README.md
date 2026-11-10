@@ -4,6 +4,51 @@
 
 **Escenarios:** 01 (paredes), 03 (focos y cajas), 07 (niebla de rango bajo), 08 (otra niebla e iluminación), 10 (42 cajas).
 
+## V3 — observaciones angulares y geometría (prototipo offline)
+
+**Estado: implementado como prototipo, sin validación métrica en Webots ni integración con el mapa.** Se corrige el supuesto de V2: medir radios desde el centro de una imagen esférica **no** corresponde a un barrido LiDAR. La configuración actual de `camera_s` es `spherical TRUE`, resolución 160×160, FOV horizontal ≈ π rad (**180°, no 360°**). El siguiente experimento separa la detección de víctimas con `camera_f` de la hipótesis de pseudo-LiDAR con `camera_s`.
+
+**Módulos:**
+- `src/spherical_geometry.py`: rayos por píxel de la proyección esférica, rotación de la cámara (tilt nominal −30°), altura 0,44 m y desplazamiento de montaje (X=0,025, Z=−0,05). Calcula intersecciones con el plano del suelo; rechaza rayos al cielo o próximos al horizonte. Entrega distancia horizontal **desde la cámara**, punto en marco del robot y rumbo estimado.
+- `src/angular_observations.py`: sectores en columnas angulares, tres columnas por sector, segmentación HSV conservadora en cuatro clases y transición **suelo visible → obstáculo visible**. Si falta suelo visible, hay autooclusión, contradicción entre columnas, un rayo no corta el suelo o no existe máscara de carrocería verificada, devuelve `unknown` y `distance_m=null`. Nunca produce espacio libre.
+- `src/segment_image.py`: la CLI usa `--mode angular` por defecto para V3. El antiguo algoritmo circular sigue disponible **solo** como `--mode radial-legacy` por reproducibilidad; no es metrizable.
+- `src/analyze_runs.py`: analiza las carpetas `run_...` de P1, P2 y P3 usando los `trial_id` registrados. Guarda `v3_sectors.csv`, `v3_summary.json` y la imagen `*_classes.png` en una ruta separada. No modifica `frames.csv` ni `visual_measurements.csv`.
+
+**Precauciones geométricas:** la geometría está parametrizada desde la cámara de las copias de calibración (no se lee el archivo WBT en el controlador). Se usa un modelo esférico angular y eje óptico `-Z` del dispositivo, con píxeles a la derecha como azimut positivo; **el sentido y el montaje deben verificarse con un marcador lateral de posición conocida en Webots**, especialmente antes de emplear los rumbos en el mapa. La intersección suelo-rayo solo es válida para obstáculos con contacto visible con un suelo plano y no representa distancia a una superficie arbitraria. Un valor de 0,5 en `confidence` es heurístico, no probabilidad calibrada. El alcance [0,2, 4,0] m es un **filtro provisional del prototipo**, no un alcance demostrado.
+
+### Ejecutar V3 sobre las capturas P1–P3
+
+Desde la raíz del repositorio:
+
+```bash
+python3 -m pip install -r experiments/exp_002_visual_ranging/requirements.txt
+python3 -m unittest discover -s experiments/exp_002_visual_ranging/tests -v
+
+python3 experiments/exp_002_visual_ranging/src/analyze_runs.py \
+  experiments/exp_002_visual_ranging/results/run_20261110_202108 \
+  experiments/exp_002_visual_ranging/results/run_20261110_202308 \
+  experiments/exp_002_visual_ranging/results/run_20261110_202340 \
+  --output-dir /tmp/exp002_v3
+```
+
+Sin máscara de autooclusión **verificada por inspección de las imágenes**, la salida es deliberadamente `unknown` para los 16 sectores de cada captura: **no se debe reportar MAE**. Se podrá proporcionar una máscara **específica de la cámara inclinada −30°** con `--mask-config <file.json>`; su campo `verified` solo debe marcarse `true` después de contrastarla visualmente con varias imágenes reales. La máscara central antigua de `self_occlusion_pilot.json` está sin verificar y fue creada para otra orientación; **no reutilizarla**.
+
+Para inspeccionar una sola imagen y su clasificación:
+
+```bash
+python3 experiments/exp_002_visual_ranging/src/segment_image.py \
+  experiments/exp_002_visual_ranging/results/run_20261110_202308/frame_000000.jpg \
+  --mode angular --tilt-deg -30 --output-dir /tmp/exp002_v3/frame_review
+```
+
+Los archivos de salida `angular_classes.png` y `angular_sectors.json` son diagnósticos. Un sector `occupied` significa **candidato geométrico**, no evidencia aceptada para el mapa; integrar con sensores IR solo tras medir errores y detectar falsos positivos en imágenes independientes. La cámara frontal `camera_f` permanece reservada para detección visual de víctimas, fuera del alcance de EXP-002.
+
+**Capturas piloto existentes:** P1 (0,8 m nominal centro-robot–pared), P2 (1,0 m), P3 (1,5 m), todas a 1,024 s. En su inspección visual anterior se observó el contorno superior de la pared y zonas de carrocería, pero **no se confirmó una frontera continua suelo-pared**. En ausencia de esa frontera y una máscara validada, esas imágenes no demuestran rangos métricos. Se necesitan capturas con suelo visible y un marcador lateral para validar el marco de ángulos, además de referencias independientes antes de calcular MAE.
+
+**Referencia técnica:** [Webots Camera, proyección esférica](https://cyberbotics.com/doc/reference/camera): píxeles `(s,t)` como direcciones angulares, distintas de proyección cilíndrica. Las pruebas nuevas son sintéticas; no sustituyen la verificación en Webots.
+
+---
+
 ## Fase 2 — Piloto de calibración de pared (preparado, pendiente de ejecutar)
 
 **Objetivo:** verificar en tres capturas si la transición visual suelo/pared cambia de manera reproducible con la distancia. Esta etapa **no implementa aún píxeles → metros** ni acepta el pseudo-LiDAR.
