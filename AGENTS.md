@@ -75,3 +75,9 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - Only the calibration runs start capture after 1 simulated second and finalize on the first saved frame. Noncalibration runs remain periodic.
 - The visual camera markers are removed only in calibration copies; no canonical WBT is changed.
 - Distances in the README refer to robot-center horizontal reference, not the camera optical ray. Do not claim metric ranging or a passing Webots run without observations.
+
+## EXP-002 V3 geometry guardrails
+- Use `spherical_geometry.py` and `angular_observations.py` for future spherical-camera analysis. The radial functions in `camera_projection.py` are legacy image-space only and MUST NOT drive metric mapping.
+- The FOV configured in the current WBT is ~180° horizontally, not 360°. Verify azimuth sign with an off-axis marker before navigation.
+- Ground-ray distance is only a candidate for a floor/obstacle contact in clear view and with verified orientation-specific chassis mask. Unknown is not free.
+- P1/P2/P3 have no established visible ground-contact boundary or measured MAE. Do not assert numeric ranging accuracy until independent reference and out-of-sample validation exist.

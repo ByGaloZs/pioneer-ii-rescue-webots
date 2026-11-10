@@ -1,4 +1,4 @@
-"""Pixel geometry for Webots spherical-camera EXP-002 observations.
+"""Legacy image-plane geometry and V3 spherical camera-model entry point.
 
 Webots describes spherical pixels with horizontal/vertical angular coordinates
 (s, t). The radial scans below are image-space probes ONLY: their radii are not
@@ -12,6 +12,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import atan2, cos, floor, isfinite, pi, sin
+
+# V3 uses actual image-column azimuth/elevation and camera extrinsics.
+# The legacy CameraProjection class remains for reproducibility of EXP-002 V2
+# synthetic tests; its radial scans MUST NOT feed metric navigation.
+from spherical_geometry import GroundContact, SphericalCameraModel
 
 
 @dataclass(frozen=True)

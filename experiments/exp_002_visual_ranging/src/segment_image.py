@@ -323,28 +323,75 @@ def render_overlay(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Segment one Webots spherical frame")
-    parser.add_argument("image", type=Path, help="JPEG image from Exp002Logger")
-    parser.add_argument("--output-dir", type=Path, help="Optional directory for PNG and JSON")
+    parser = argparse.ArgumentParser(description="EXP-002 spherical visual diagnostics")
+    parser.add_argument("image", type=Path, help="JPEG from Exp002Logger")
+    parser.add_argument("--output-dir", type=Path, help="Optional directory for diagnostics")
+    parser.add_argument("--mask-config", type=Path, help="Self-occlusion JSON mask")
+    parser.add_argument("--mode", choices=("angular", "radial-legacy"), default="angular")
     parser.add_argument("--sectors", type=int, default=16)
-    parser.add_argument(
-        "--mask-config", type=Path, required=True,
-        help="JSON self-occlusion mask; mandatory to avoid mislabeling chassis as floor",
-    )
+    parser.add_argument("--tilt-deg", type=float, default=-30.0,
+                        help="Experimental camera X-axis tilt in degrees (angular mode)")
     args = parser.parse_args()
 
     image = cv2.imread(str(args.image), cv2.IMREAD_COLOR)
     if image is None:
         parser.error(f"Cannot load image: {args.image}")
-    projection = CameraProjection(width=image.shape[1], height=image.shape[0])
+
+    if args.mode == "angular":
+        from math import radians
+        from angular_observations import AngularConfig, observe_sectors
+        from spherical_geometry import SphericalCameraModel
+
+        verified = False
+        if args.mask_config is not None:
+            config_data = json.loads(args.mask_config.read_text(encoding="utf-8"))
+            verified = config_data.get("verified") is True
+            occlusion_mask = load_occlusion_mask(args.mask_config, image.shape[:2])
+        else:
+            occlusion_mask = np.zeros(image.shape[:2], dtype=bool)
+        model = SphericalCameraModel(
+            width=image.shape[1], height=image.shape[0],
+            tilt_rad=radians(args.tilt_deg),
+        )
+        observations, labels = observe_sectors(
+            image, model, occlusion_mask=occlusion_mask,
+            mask_verified=verified, config=AngularConfig(sector_count=args.sectors),
+        )
+        data = {
+            "image_file": str(args.image),
+            "mode": "angular",
+            "self_occlusion_mask_verified": verified,
+            "interpretation": "Geometry candidates only; not validated or free space",
+            "sectors": [item.as_record() for item in observations],
+        }
+        print(json.dumps(data, indent=2))
+        if args.output_dir is not None:
+            args.output_dir.mkdir(parents=True, exist_ok=True)
+            palette = np.array([
+                [20, 20, 20], [130, 130, 130],
+                [230, 170, 25], [40, 180, 40],
+            ], dtype=np.uint8)
+            if not cv2.imwrite(str(args.output_dir / "angular_classes.png"), palette[labels]):
+                raise RuntimeError("Unable to save angular_classes.png")
+            if not cv2.imwrite(str(args.output_dir / "occlusion_mask.png"),
+                               occlusion_mask.astype(np.uint8) * 255):
+                raise RuntimeError("Unable to save occlusion_mask.png")
+            (args.output_dir / "angular_sectors.json").write_text(
+                json.dumps(data, indent=2) + "\n", encoding="utf-8"
+            )
+        return 0
+
+    # Historical V2 comparison only: image radii are NOT physical bearings.
+    if args.mask_config is None:
+        parser.error("--mode radial-legacy requires --mask-config")
     occlusion_mask = load_occlusion_mask(args.mask_config, image.shape[:2])
+    projection = CameraProjection(width=image.shape[1], height=image.shape[0])
     segmentation = segment_image(image, occlusion_mask=occlusion_mask)
     boundaries = extract_radial_boundaries(segmentation, projection, sector_count=args.sectors)
     data = {
         "image_file": str(args.image),
-        "interpretation": "Image-space boundaries only; NO metric calibration or near-field clearance",
-        "occlusion_mask_config": str(args.mask_config),
-        "occlusion_pixels": int(occlusion_mask.sum()),
+        "mode": "radial-legacy",
+        "interpretation": "Image-space boundaries only; NO metric calibration",
         "sectors": [asdict(item) for item in boundaries],
     }
     print(json.dumps(data, indent=2))
@@ -353,12 +400,18 @@ def main() -> int:
         overlay = render_overlay(image, segmentation, boundaries)
         if not cv2.imwrite(str(args.output_dir / "overlay.png"), overlay):
             raise RuntimeError("Unable to write overlay.png")
-        color_mask = np.array([[30, 30, 30], [130, 130, 130], [220, 180, 30], [40, 180, 40]], dtype=np.uint8)
-        if not cv2.imwrite(str(args.output_dir / "occlusion_mask.png"), (occlusion_mask * 255).astype(np.uint8)):
-            raise RuntimeError("Unable to write occlusion_mask.png")
+        color_mask = np.array([
+            [30, 30, 30], [130, 130, 130],
+            [220, 180, 30], [40, 180, 40],
+        ], dtype=np.uint8)
         if not cv2.imwrite(str(args.output_dir / "mask.png"), color_mask[segmentation.labels]):
             raise RuntimeError("Unable to write mask.png")
-        (args.output_dir / "boundaries.json").write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        if not cv2.imwrite(str(args.output_dir / "occlusion_mask.png"),
+                           occlusion_mask.astype(np.uint8) * 255):
+            raise RuntimeError("Unable to write occlusion_mask.png")
+        (args.output_dir / "boundaries.json").write_text(
+            json.dumps(data, indent=2) + "\n", encoding="utf-8"
+        )
     return 0
 
 
