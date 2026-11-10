@@ -1,13 +1,38 @@
 #include <webots/Robot.hpp>
 
+#include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <iostream>
+#include <string>
 
 #include "control/MotorController.h"
 #include "sensors/SensorManager.h"
 #include "../../experiments/exp_002_visual_ranging/src/Exp002Logger.h"
 
-int main() {
+int main(int argc, const char *argv[]) {
+  // Only explicit experiment labels are accepted. No WBT geometry or
+  // reference distance is accessed by the controller.
+  const std::string prefix = "exp002_trial=";
+  std::string trialId = "unlabeled";
+  for (int i = 1; i < argc; ++i) {
+    const std::string argument(argv[i]);
+    if (argument.compare(0, prefix.size(), prefix) != 0)
+      continue;
+    if (trialId != "unlabeled") {
+      std::cerr << "Duplicate EXP-002 trial label." << std::endl;
+      return 1;
+    }
+    trialId = argument.substr(prefix.size());
+    if (trialId.empty() || trialId.size() > 64 ||
+        !std::all_of(trialId.begin(), trialId.end(), [](unsigned char value) {
+          return std::isalnum(value) || value == '_' || value == '-';
+        })) {
+      std::cerr << "Invalid EXP-002 trial label." << std::endl;
+      return 1;
+    }
+  }
+  const bool calibrationTrial = trialId.compare(0, 8, "calib01_") == 0;
   webots::Robot robot;
   const int timeStep = static_cast<int>(robot.getBasicTimeStep());
   if (timeStep <= 0) {
@@ -33,7 +58,7 @@ int main() {
             << std::endl;
 
   Exp002Logger visualLogger;
-  if (!visualLogger.initialize(timeStep, spherical)) {
+  if (!visualLogger.initialize(timeStep, spherical, trialId, calibrationTrial)) {
     std::cerr << "EXP-002 image logging unavailable; camera diagnostics "
                  "continue on console."
               << std::endl;
@@ -44,6 +69,7 @@ int main() {
 
   bool startPoseCaptured = false;
   double nextReportS = 0.0;
+  double nextCaptureS = calibrationTrial ? 1.0 : 0.0;
   while (robot.step(timeStep) != -1) {
     const SensorSnapshot snapshot = sensors.read();
     if (!startPoseCaptured && snapshot.gpsValid && snapshot.compassValid) {
@@ -55,11 +81,21 @@ int main() {
     }
 
     const double timeS = robot.getTime();
+    if (visualLogger.isOpen() && timeS + 1e-9 >= nextCaptureS) {
+      const bool saved = visualLogger.capture(timeS, spherical, snapshot);
+      nextCaptureS = timeS + 1.0;
+      std::cout << "[EXP002_FRAME] trial=" << trialId
+                << " t=" << std::fixed << std::setprecision(3) << timeS
+                << " saved=" << (saved ? 1 : 0) << std::endl;
+      if (calibrationTrial && saved) {
+        visualLogger.finish(timeS);
+        std::cout << "[EXP002_DONE] trial=" << trialId
+                  << " image saved and files finalized." << std::endl;
+      }
+    }
     if (timeS < nextReportS)
       continue;
     nextReportS = timeS + 1.0;
-    if (visualLogger.isOpen())
-      visualLogger.capture(timeS, spherical, snapshot);
     std::cout << std::fixed << std::setprecision(3)
               << "[SENSORS] t=" << timeS
               << " gps=" << (snapshot.gpsValid ? "ok" : "invalid")

@@ -91,6 +91,8 @@ void writeBoolean(std::ostream &stream, bool value) {
 
 Exp002Logger::Exp002Logger()
     : _runDirectory(),
+      _trialId("unlabeled"),
+      _singleShot(false),
       _frames(),
       _measurements(),
       _summary(),
@@ -99,13 +101,17 @@ Exp002Logger::Exp002Logger()
       _finished(false) {}
 
 bool Exp002Logger::initialize(int timeStepMs,
-                              const webots::Camera *sphericalCamera) {
+                              const webots::Camera *sphericalCamera,
+                              const std::string &trialId,
+                              bool singleShot) {
   if (sphericalCamera == 0) {
     std::cerr << "EXP-002 logger: spherical camera is unavailable."
               << std::endl;
     return false;
   }
 
+  _trialId = trialId;
+  _singleShot = singleShot;
   const std::string root = resultsRoot();
   if (root.empty() || (!isDirectory(root) && !makeDirectory(root) &&
                        !isDirectory(root))) {
@@ -143,13 +149,15 @@ bool Exp002Logger::initialize(int timeStepMs,
 
   _frames << "frame_index,simulation_time_s,gps_valid,gps_x_m,gps_z_m,"
              "compass_valid,heading_rad,image_available,image_saved,image_file,"
-             "image_width_px,image_height_px,camera_fov_rad\n";
+             "image_width_px,image_height_px,camera_fov_rad,trial_id\n";
   _measurements
       << "frame_file,scenario,object_type,reference_distance_m,sector,"
          "radial_boundary_px,estimated_distance_m,absolute_error_m,usable,"
          "unknown_reason,occlusion,visibility_condition,notes\n";
   _summary << "experiment_id=EXP-002\n"
-           << "run_name=" << baseName << '\n'
+           << "run_name=" << _runDirectory.substr(_runDirectory.find_last_of("/\\") + 1) << '\n'
+           << "trial_id=" << _trialId << '\n'
+           << "capture_mode=" << (_singleShot ? "single_after_1s" : "periodic") << '\n'
            << "scenario=not_provided_to_controller\n"
            << "world_path=not_read_by_controller\n"
            << "webots_timestep_ms=" << timeStepMs << '\n'
@@ -159,7 +167,8 @@ bool Exp002Logger::initialize(int timeStepMs,
            << std::setprecision(6) << sphericalCamera->getFov() << '\n'
            << "image_format=JPEG\n"
            << "capture_period_simulated_s=1\n"
-           << "reference_distances=to_be_measured_offline\n";
+           << "reference_distances=to_be_measured_offline\n"
+           << "status=recording\n";
   _frames.flush();
   _measurements.flush();
   _summary.flush();
@@ -174,11 +183,11 @@ const std::string &Exp002Logger::runDirectory() const {
   return _runDirectory;
 }
 
-void Exp002Logger::capture(double simulationTimeS,
+bool Exp002Logger::capture(double simulationTimeS,
                            const webots::Camera *sphericalCamera,
                            const SensorSnapshot &snapshot) {
   if (!isOpen() || _finished || sphericalCamera == 0)
-    return;
+    return false;
 
   std::ostringstream imageName;
   imageName << "frame_" << std::setw(6) << std::setfill('0') << _frameCount
@@ -208,7 +217,7 @@ void Exp002Logger::capture(double simulationTimeS,
   if (imageSaved) _frames << relativeImagePath;
   _frames << ',' << sphericalCamera->getWidth() << ','
           << sphericalCamera->getHeight() << ',' << sphericalCamera->getFov()
-          << '\n';
+          << ',' << _trialId << '\n';
 
   if (imageSaved)
     _measurements << relativeImagePath;
@@ -220,6 +229,7 @@ void Exp002Logger::capture(double simulationTimeS,
   ++_frameCount;
   if (imageSaved)
     ++_savedImageCount;
+  return imageSaved;
 }
 
 void Exp002Logger::finish(double simulationTimeS) {

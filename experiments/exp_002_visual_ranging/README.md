@@ -4,6 +4,50 @@
 
 **Escenarios:** 01 (paredes), 03 (focos y cajas), 07 (niebla de rango bajo), 08 (otra niebla e iluminación), 10 (42 cajas).
 
+## Fase 2 — Piloto de calibración de pared (preparado, pendiente de ejecutar)
+
+**Objetivo:** verificar en tres capturas si la transición visual suelo/pared cambia de manera reproducible con la distancia. Esta etapa **no implementa aún píxeles → metros** ni acepta el pseudo-LiDAR.
+
+Se han creado tres **copias experimentales del escenario 01** con `camera_s` a **−30°** (`rotation 1 0 0 -0.5236`), GPS `resolution -1`, X=0, yaw=0, los mismos obstáculos e iluminación, y **sin los elementos gráficos auxiliares** `LENS`, `STRUCTURE_AXES`, `CAMERA_SHAPE` ni `CAMERA_OUTLINE`. La cámara y sus propiedades ópticas permanecen intactas.
+
+| Mundo listo en `worlds/` | Trial ID | Z del robot | Separación nominal centro-pared* |
+| --- | --- | ---: | ---: |
+| `exp002_calibration_01_p1.wbt` | `calib01_tilt30_p1` | −9,00 m | 0,80 m |
+| `exp002_calibration_01_p2.wbt` | `calib01_tilt30_p2` | −8,80 m | 1,00 m |
+| `exp002_calibration_01_p3.wbt` | `calib01_tilt30_p3` | −8,30 m | 1,50 m |
+
+*Referencias de configuración obtenidas **offline** del escenario 01 (pared posterior, cara interior ≈ Z=−9,80 m). Son distancias horizontales **desde el origen del robot**, no la distancia óptica exacta a la pared ni la distancia mínima desde la carrocería; comprobar el contacto, perspectiva y referencia de cámara antes de calibrar.
+
+### Ejecución en Webots
+
+1. Actualizar desde GitHub: `git pull origin main`.
+2. Abrir `worlds/exp002_calibration_01_p1.wbt`, **compilar `fool_controller` actualizado**, reiniciar la simulación desde t=0 y ejecutarla **al menos 1 segundo simulado**.
+3. Esperar en consola `[EXP002_FRAME] ... saved=1` y `[EXP002_DONE] trial=calib01_tilt30_p1`. Solo entonces detener/pausar la simulación. El controlador mantiene las ruedas detenidas.
+4. Repetir con `p2` y `p3`, abriendo cada mundo y reiniciando a t=0. No cambiar iluminación, posición manualmente ni inclinación.
+5. Guardar o subir a GitHub las tres carpetas `results/run_.../` completas (especialmente `frame_000000.jpg`, `frames.csv` y `summary.txt`), sin sobreescribir corridas anteriores.
+6. Inspeccionar primero las **imágenes JPEG sin procesar**: pared visible, suelo, autooclusión y una frontera físicamente coherente. Si hay manchas ambiguas, reportar `unknown` y no calcular metros.
+
+El campo `controllerArgs` de cada copia contiene **solo un identificador textual de prueba**: `exp002_trial=calib01_tilt30_pN`. Webots lo pasa como argumento a `main`; el controlador **no consulta la geometría WBT ni recibe la distancia de referencia**. El logger guarda `trial_id` en `frames.csv` y `summary.txt`.
+
+Para las corridas etiquetadas `calib01_*`, el primer intento de captura es **a partir de t=1,0 s simulado** (32 pasos de 32 ms ≈ 1,024 s), en vez de t=0,032 s. Si la imagen se guarda, la corrida es **single-shot**: se escribe `status=completed` y se cierran los CSV y el resumen automáticamente. Si falla, vuelve a intentar aproximadamente cada segundo. La cámara no se mueve ni se calibra automáticamente. Los mundos anteriores sin etiqueta mantienen registro periódico.
+
+**Validaciones antes de pasar a distancia métrica:**
+- `frames.csv`: `image_saved=1`, `gps_z_m` próximo al Z configurado y `trial_id` correcto.
+- `summary.txt`: `capture_mode=single_after_1s`, `capture_count`, `images_saved`, `status=completed` (una corrida terminada), sin interpretar `status=recording` como fallo de cámara si se detuvo anticipadamente.
+- Determinar si existe transición suelo-pared visible a las tres distancias. Las antiguas máscaras de autooclusión no están calibradas para estas vistas: no reutilizarlas automáticamente.
+- Medir posteriormente referencias ópticas independientes y definir método geométrico en `camera_projection.py`. `visual_measurements.csv` seguirá vacío en esta fase deliberadamente.
+
+Reproducción de mundos (están **ya versionados**, no es necesario generarlos de nuevo):
+
+```bash
+python3 experiments/exp_002_visual_ranging/src/create_pilot_world.py --mode calibration
+python3 -m unittest discover -s experiments/exp_002_visual_ranging/tests -v
+```
+
+El generador conserva `final_scenario*.wbt`, verifica los nodos esperados antes de eliminar visuales y rechaza archivos editados sin `--overwrite`. Las pruebas Python validan la generación; **aún falta compilar y ejecutar Webots en el equipo del usuario**.
+
+---
+
 ## Prueba comparativa de dirección de cámara — lista para ejecutar
 
 **Objetivo inmediato:** comprobar si cambiar únicamente la inclinación de la cámara esférica aumenta el suelo y los obstáculos visibles y reduce la autooclusión. **No es todavía una prueba de distancias en metros.**
@@ -117,7 +161,7 @@ El comando imprime JSON y, con `--output-dir`, guarda `mask.png`, `overlay.png`,
 4. Implementar análisis automático por corrida y generación de `visual_measurements.csv` con distancias/errores, dejando `unknown` sin distancia.
 5. Verificar robustez en 03, 07, 08 y 10. Solo entonces decidir si integrar la visión en el mapeo.
 
-La validación anterior de segmentación incluyó 15 pruebas unitarias sintéticas; el generador de los tres mundos cuenta además con cuatro pruebas offline propias. La ejecución comparativa en Webots está pendiente. **No** implica rendimiento demostrado en Webots ni aceptación de EXP-002.
+La validación anterior de segmentación incluyó 15 pruebas unitarias sintéticas; el generador de los tres mundos cuenta además con cuatro pruebas offline propias. La comparación de orientaciones ya dispone de tres capturas; esta fase de calibración aún no tiene capturas reales. **No** implica rendimiento demostrado en Webots ni aceptación de EXP-002.
 
 ### Primera inspección de imagen Webots
 
