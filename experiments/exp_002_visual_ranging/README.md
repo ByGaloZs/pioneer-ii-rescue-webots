@@ -66,6 +66,12 @@ El comando imprime JSON y, con `--output-dir`, guarda `mask.png`, `overlay.png`,
 
 La validación local del prototipo y la exclusión de carrocería incluye **15 pruebas unitarias sintéticas y una ejecución del CLI con una imagen sintética**. **No** implica rendimiento demostrado en Webots ni aceptación de EXP-002.
 
+### Primera inspección de imagen Webots
+
+La captura `results/run_20261110_174034/frame_000000.jpg` se guardó correctamente (160 × 160 px, FOV 3.1415 rad; pose registrada `(0,-6)`, rumbo `0 rad`). El escenario no quedó etiquetado en los metadatos. El análisis produjo 13 sectores `unknown` por transición ambigua y tres límites en sectores 12–14, a 58, 60 y 66 px, confianza heurística 0.6. **Los 16 sectores tienen `near_field_occluded=true`.**
+
+El detalle está en [`analysis_summary.md`](results/run_20261110_174034/analysis_summary.md). Esta inspección no valida la máscara provisional ni la distancia métrica; los tres límites pueden corresponder a la silueta visible del robot. Revisar la máscara con la imagen real antes de marcarla como verificada.
+
 
 ## Piloto de carrocería y pared posterior — escenario 01
 
