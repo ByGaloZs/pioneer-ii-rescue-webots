@@ -44,3 +44,10 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - Start with a controlled world; confirm generalization in all 10 `worlds/final_scenario*.wbt`, using varying initial poses.
 - Update `docs/decisions.md` for significant new decisions; preserve unsuccessful experiment conclusions.
 - Before reporting completion: run available tests, build in Webots where possible, state what was *not* validated, and avoid invented metrics.
+
+## Scenario-specific testing plan
+- Follow `docs/test_plan.md` and `docs/scenario_catalog.md` when selecting representative WBT scenarios and designing regressions.
+- Every experiment must have its own `experiments/exp_NNN_short_name/README.md`, even if it is only planned. Document reasons if the chosen scenario matrix changes.
+- For outbound navigation and the complete mission, schedule 10 scenarios × 3 verified starting poses, and record results per run. The source WBT robot pose is not the competition start pose.
+- Do not alter canonical `worlds/final_scenario*.wbt` when producing test variants; place reproducible variants outside the reference worlds and record parameters.
+- All ten experiments are currently planned, not executed. Never fabricate results.

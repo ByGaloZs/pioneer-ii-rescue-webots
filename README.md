@@ -128,6 +128,8 @@ Las carpetas marcadas como *planificadas* están reservadas para futuras impleme
 - [Arquitectura](docs/architecture.md): módulos y flujo de información.
 - [Decisiones](docs/decisions.md): justificación y estado de elecciones técnicas.
 - [Protocolo experimental](docs/experiments.md): pruebas reproducibles y métricas.
+- [Plan maestro de pruebas](docs/test_plan.md): matriz EXP-001–010, escenarios, arranques y criterios.
+- [Catálogo de escenarios](docs/scenario_catalog.md): comparación estática de los diez archivos WBT.
 - [Experimentos](experiments/README.md): plantillas y registro de cada prueba.
 
 ## Estado de desarrollo

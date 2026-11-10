@@ -41,3 +41,7 @@ experiment_id,run_id,scenario,start_x,start_z,start_yaw,elapsed_s,progress_m,col
 ```
 
 Guardar CSV y conclusiones pequeñas en Git; excluir compilados, vídeos y logs voluminosos con `.gitignore`. El archivo CSV no es generado automáticamente por el controlador actual.
+
+## Escenarios seleccionados y casos
+
+La selección por experimento está fijada en [Plan maestro de pruebas](test_plan.md) y justificada mediante el [catálogo de escenarios WBT](scenario_catalog.md). Consultar allí la matriz de 10 experimentos, las poses iniciales S1–S3, las pruebas finales de 30 corridas y el mecanismo de revisión. No interpretar una prueba superada en escenario 01 como éxito demostrado en los diez mundos.
