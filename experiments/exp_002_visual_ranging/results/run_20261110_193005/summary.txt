@@ -1,0 +1,14 @@
+experiment_id=EXP-002
+run_name=run_20261110_193005
+scenario=not_provided_to_controller
+world_path=not_read_by_controller
+webots_timestep_ms=32
+spherical_camera_resolution=160x160
+spherical_camera_fov_rad=3.141500
+image_format=JPEG
+capture_period_simulated_s=1
+reference_distances=to_be_measured_offline
+status=completed
+capture_count=1
+images_saved=1
+simulation_time_s=0.032
