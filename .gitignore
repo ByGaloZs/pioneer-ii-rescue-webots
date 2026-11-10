@@ -1,0 +1,24 @@
+# Webots / C++ generated artifacts
+**/*.o
+**/*.d
+**/*.a
+**/*.so
+**/*.dll
+**/*.exe
+**/*.out
+**/*.log
+**/*.wbproj
+**/build/
+**/out/
+controllers/fool_controller/fool_controller
+
+# Large experiment output
+experiments/**/videos/
+experiments/**/recordings/
+experiments/**/screenshots/
+
+# OS / local tools
+.DS_Store
+Thumbs.db
+__pycache__/
+*.pyc

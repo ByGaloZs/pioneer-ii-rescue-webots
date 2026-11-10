@@ -91,25 +91,44 @@ Los parámetros de los dispositivos y del modelo cinemático están centralizado
 ## Estructura del proyecto
 
 ```text
-./
-├── controllers/
-│   └── fool_controller/
-│       ├── fool_controller.cpp             # Punto de entrada actual
-│       ├── Makefile
-│       ├── config/RobotConfig.h            # Parámetros del robot
-│       ├── control/MotorController.*       # Control de motores
-│       └── sensors/
-│           ├── SensorManager.*             # Inicio y lectura de sensores
-│           ├── SensorSnapshot.h            # Estado de sensores
-│           ├── DistanceSensorCalibration.* # Conversión de lecturas
-│           └── RangeSensorModel.h          # Montaje geométrico de sensores
-├── worlds/                                  # 10 escenarios de evaluación
-├── protos/                                  # Modelo Pioneer II
-├── tests/sensor_calibration_test.cpp
-└── README.md
+.
+├── AGENTS.md
+├── README.md
+├── .gitignore
+├── controllers/fool_controller/
+│   ├── fool_controller.cpp
+│   ├── Makefile
+│   ├── config/                     # Configuración existente
+│   ├── sensors/                    # Lectura y calibración existente
+│   ├── control/                    # Actuación existente
+│   ├── localization/               # Planificado
+│   ├── perception/                 # Planificado
+│   ├── mapping/                    # Planificado
+│   ├── exploration/                # Planificado
+│   ├── planning/                   # Planificado
+│   └── mission/                    # Planificado
+├── docs/
+│   ├── architecture.md
+│   ├── decisions.md
+│   └── experiments.md
+├── experiments/
+│   ├── README.md
+│   ├── _template/
+│   └── exp_001_sensor_validation/
+├── tests/
+├── protos/
+└── worlds/
 ```
 
-La organización del código crecerá por módulos conforme se implementen percepción, mapas, exploración, planificación y misión. El controlador se denomina actualmente `fool_controller` para coincidir con los mundos suministrados.
+Las carpetas marcadas como *planificadas* están reservadas para futuras implementaciones; no contienen algoritmos todavía. Se conserva el nombre `fool_controller` porque los escenarios disponibles lo referencian.
+
+### Guía de desarrollo
+
+- [AGENTS.md](AGENTS.md): reglas para asistentes y colaboradores.
+- [Arquitectura](docs/architecture.md): módulos y flujo de información.
+- [Decisiones](docs/decisions.md): justificación y estado de elecciones técnicas.
+- [Protocolo experimental](docs/experiments.md): pruebas reproducibles y métricas.
+- [Experimentos](experiments/README.md): plantillas y registro de cada prueba.
 
 ## Estado de desarrollo
 
