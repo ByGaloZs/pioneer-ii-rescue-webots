@@ -1,7 +1,8 @@
 CXX_SOURCES = fool_controller.cpp \
               sensors/SensorManager.cpp \
               sensors/DistanceSensorCalibration.cpp \
-              control/MotorController.cpp
+              control/MotorController.cpp \
+              ../../experiments/exp_001_sensor_validation/src/Exp001Logger.cpp
 
 null :=
 space := $(null) $(null)

@@ -5,6 +5,7 @@
 
 #include "control/MotorController.h"
 #include "sensors/SensorManager.h"
+#include "../../experiments/exp_001_sensor_validation/src/Exp001Logger.h"
 
 int main() {
   webots::Robot robot;
@@ -31,6 +32,16 @@ int main() {
             << " spherical=" << spherical->getWidth() << 'x' << spherical->getHeight()
             << std::endl;
 
+  Exp001Logger logger;
+  if (!logger.initialize(timeStep, front->getWidth(), front->getHeight(),
+                         spherical->getWidth(), spherical->getHeight())) {
+    std::cerr << "EXP-001 logging unavailable; sensor diagnostics continue on console."
+              << std::endl;
+  } else {
+    std::cout << "[EXP001_LOG] Writing run data to " << logger.runDirectory()
+              << std::endl;
+  }
+
   bool startPoseCaptured = false;
   double nextReportS = 0.0;
   while (robot.step(timeStep) != -1) {
@@ -47,6 +58,10 @@ int main() {
     if (timeS < nextReportS)
       continue;
     nextReportS = timeS + 1.0;
+    if (logger.isOpen()) {
+      logger.writeSample(timeS, snapshot, front->getImage() != 0,
+                         spherical->getImage() != 0);
+    }
     std::cout << std::fixed << std::setprecision(3)
               << "[SENSORS] t=" << timeS
               << " gps=" << (snapshot.gpsValid ? "ok" : "invalid")
@@ -60,6 +75,7 @@ int main() {
   }
 
   motors.stop();
+  logger.finish(robot.getTime());
   sensors.shutdown();
   return 0;
 }
