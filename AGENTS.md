@@ -62,3 +62,9 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - `experiments/exp_002_visual_ranging/config/self_occlusion_pilot.json` is an **unverified example** until inspected against real spherical frames. Keep excluded pixels unknown.
 - Generate any test variant using `src/create_pilot_world.py`, never overwrite the ten canonical `.wbt` files.
 - A usable image-space boundary does not imply near-field safety or metric range. Calibration, image registration and metrics are still pending.
+
+## EXP-002 camera orientation variants
+- The three `worlds/exp002_camera_01_*.wbt` are explicitly versioned pilot variants generated from scenario 01, not replacements for original final scenarios.
+- In each variant, GPS resolution is `-1`, robot starts at `(0, 0, -8.8)` with yaw 0, and only `camera_s` tilt differs. Do not infer physical bearing without verifying camera extrinsics.
+- Keep an orientation-specific chassis mask if a mask is needed; do not transfer the old downward-facing mask unchanged.
+- Generate/check variants with `experiments/exp_002_visual_ranging/src/create_pilot_world.py`; preserve canonical worlds and captured evidence.

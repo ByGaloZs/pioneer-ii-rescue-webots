@@ -33,3 +33,7 @@ Los hashes son los identificadores Git del contenido original y se verificaron a
 Abrir los diez escenarios en Webots, verificar la disponibilidad del robot y que los dispositivos conserven los nombres y características esperados por `SensorManager`. Posteriormente ejecutar `EXP-001`. No se afirma que los mundos originales ya se hayan ejecutado en Webots.
 
 Consulta también el [catálogo estructural](../docs/scenario_catalog.md) y el [plan de pruebas](../docs/test_plan.md).
+
+## Mundos de prueba EXP-002 (no son escenarios originales)
+
+Se incluyen tres copias de `final_scenario01.wbt` de la versión de desarrollo actual: [`exp002_camera_01_tilt45.wbt`](exp002_camera_01_tilt45.wbt), [`exp002_camera_01_tilt30.wbt`](exp002_camera_01_tilt30.wbt) y [`exp002_camera_01_horizontal.wbt`](exp002_camera_01_horizontal.wbt). Usan la misma pose del robot `(X=0, Z=-8.8, yaw=0)` y GPS `resolution -1`; solo difiere la rotación de `camera_s`. No usar estas copias como prueba de que los diez mundos originales permiten alterar sensores. Consulta [EXP-002](../experiments/exp_002_visual_ranging/README.md).

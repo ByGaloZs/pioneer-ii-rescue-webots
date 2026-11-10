@@ -177,10 +177,26 @@ class SelfOcclusionTest(unittest.TestCase):
 class PilotWorldTest(unittest.TestCase):
     def test_world_edit_preserves_other_content(self):
         from create_pilot_world import make_pilot_world
-        original = "#VRML_SIM R2020b utf8\nPioneer2 {\n  translation 0 0 -9.05\n  rotation 0 1 0 3.14159\n  controller \"fool_controller\"\n}\n"
+        original = (
+            "#VRML_SIM R2020b utf8\n"
+            "Pioneer2 {\n"
+            "  translation 0 0 -9.05\n"
+            "  rotation 0 1 0 3.14159\n"
+            '  controller "fool_controller"\n'
+            "  extensionSlot [\n"
+            "    GPS {\n      resolution 3\n    }\n"
+            "    DEF SPHERICAL_CAMERA Camera {\n"
+            "      translation 0.025 0.44 -0.05\n"
+            "      rotation 1 0 0 -1.5708\n"
+            '      name "camera_s"\n'
+            "    }\n"
+            "  ]\n}\n"
+        )
         changed = make_pilot_world(original)
         self.assertIn("translation 0 0 -8.8", changed)
         self.assertIn("rotation 0 1 0 0", changed)
+        self.assertIn("resolution -1", changed)
+        self.assertIn("rotation 1 0 0 -0.7854", changed)
         self.assertIn('controller "fool_controller"', changed)
         self.assertEqual(original.splitlines()[0], changed.splitlines()[0])
         self.assertIn("translation 0 0 -9.05", original)
