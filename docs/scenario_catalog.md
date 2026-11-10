@@ -1,6 +1,6 @@
 # Catálogo de escenarios de evaluación (.wbt)
 
-**Fuente:** archivos `worlds/final_scenario01.wbt` a `final_scenario10.wbt`, inspeccionados estáticamente en el repositorio a partir del commit `a9b9d10` (10 de noviembre de 2026). **Esto no es una medición de rendimiento del controlador.**
+**Fuente:** los diez archivos `.wbt` originales de `Práctica06_src.zip`, restaurados sin modificaciones en `worlds/` el 10 de noviembre de 2026. Integridad y detalles en [worlds/README.md](../worlds/README.md). **El análisis de geometría es estático, no una medición de rendimiento del controlador.**
 
 ## Comparativa objetiva
 
@@ -36,7 +36,7 @@ Las dos víctimas aparecen como cilindros verdes en el extremo positivo de Z. Pa
 ## Inicio y restricciones de los archivos
 
 - El recinto es 10 × 20 m y la línea `STARTLINE` aparece en **Z = −8**; `FINISHLINE` en **Z = +8**.
-- Los archivos originales declaran al robot en **Z = −5.6**, con X variable. Esta es la pose guardada en el editor, **no** una garantía sobre la pose de competición.
+- Los diez archivos originales declaran al robot en **(X, Z) = (0, −9.05)**, con orientación de eje Y de **π rad**. Es una pose de referencia del archivo, **no** una garantía sobre la pose aleatoria utilizada en competición.
 - El enunciado establece inicio aleatorio **detrás de la línea amarilla**, por lo que se necesitarán copias de prueba con poses controladas que cumplan esa restricción.
 - Posiciones preliminares para el protocolo: S1 = (−3, −8.8), S2 = (0, −8.8), S3 = (+3, −8.8), coordenadas **(X,Z)**, con orientaciones diferentes. Verificar **en Webots** ausencia de solapamiento inicial, orientación efectiva y sensor válido antes de utilizarlas.
 - Las `.wbt` se utilizan como **verdad de referencia offline** y para preparar pruebas; el controlador nunca debe acceder a los nodos geométricos completos, nombres de escenario ni posiciones exactas de víctimas en tiempo de ejecución.

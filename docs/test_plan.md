@@ -30,7 +30,7 @@ Las dependencias significan que debe existir un componente estable; no obligan a
 
 ## Poses iniciales y repetibilidad
 
-La competición puede comenzar en una pose/orientación aleatoria **detrás** de `STARTLINE` (Z = −8). No utilizar la pose grabada en el WBT (Z = −5.6) como prueba suficiente.
+La competición puede comenzar en una pose/orientación aleatoria **detrás** de `STARTLINE` (Z = −8). Los WBT originales comienzan en (X,Z) = (0,−9.05), pero una sola pose de archivo **no** demuestra robustez ante el inicio aleatorio de competición.
 
 | ID | Posición propuesta (X,Z) m | Orientación prevista | Propósito |
 | --- | --- | --- | --- |
