@@ -11,6 +11,7 @@
 **/build/
 **/out/
 controllers/fool_controller/fool_controller
+controllers/experiment_test_controller/experiment_test_controller
 
 # Large experiment output
 experiments/**/videos/

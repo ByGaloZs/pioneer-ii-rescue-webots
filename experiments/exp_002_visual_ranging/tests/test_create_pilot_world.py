@@ -1,4 +1,4 @@
-"""Offline tests; the Webots simulation must still be executed separately."""
+"""Offline tests for the single shared experiment world generator."""
 
 from __future__ import annotations
 
@@ -10,78 +10,78 @@ from pathlib import Path
 SRC = Path(__file__).resolve().parents[1] / "src"
 sys.path.insert(0, str(SRC))
 
-from create_pilot_world import VARIANTS, generate_variants, make_pilot_world
+from create_pilot_world import generate_test_world, make_pilot_world
 
 
-class CameraPilotWorldTest(unittest.TestCase):
+class SharedTestWorldTest(unittest.TestCase):
     def setUp(self) -> None:
         self.original = (
-            '#VRML_SIM R2020b utf8\n'
-            'WorldInfo {\n  basicTimeStep 32\n}\n'
-            'Pioneer2 {\n'
-            '  translation 0 0 -9.05\n'
-            '  rotation 0 1 0 3.141592653589793\n'
+            "#VRML_SIM R2020b utf8\n"
+            "WorldInfo {\n  basicTimeStep 32\n}\n"
+            "Pioneer2 {\n"
+            "  translation 0 0 -9.05\n"
+            "  rotation 0 1 0 3.141592653589793\n"
             '  controller "fool_controller"\n'
-            '  extensionSlot [\n'
-            '    GPS {\n      resolution 3\n    }\n'
-            '    DEF SPHERICAL_CAMERA Camera {\n'
-            '      translation 0.025 0.44 -0.05\n'
-            '      rotation 1 0 0 -1.5708\n'
+            "  extensionSlot [\n"
+            "    GPS {\n      resolution 3\n    }\n"
+            "    DEF SPHERICAL_CAMERA Camera {\n"
+            "      translation 0.025 0.44 -0.05\n"
+            "      rotation 1 0 0 -1.5708\n"
             '      name "camera_s"\n    }\n'
-            '  ]\n}\n'
+            "  ]\n}\n"
         )
 
-    def test_generation_changes_exactly_three_parameters(self) -> None:
-        for variant in VARIANTS:
-            with self.subTest(variant=variant.key):
-                actual = make_pilot_world(self.original, camera_tilt_rad=variant.tilt_rad)
-                expected = self.original.replace(
-                    '  translation 0 0 -9.05\n  rotation 0 1 0 3.141592653589793\n',
-                    '  translation 0 0 -8.8\n  rotation 0 1 0 0\n',
-                ).replace('resolution 3', 'resolution -1').replace(
-                    'rotation 1 0 0 -1.5708', f'rotation 1 0 0 {variant.tilt_rad:g}'
-                )
-                self.assertEqual(actual, expected)
-                self.assertIn('controller "fool_controller"', actual)
-                self.assertIn('name "camera_s"', actual)
+    def test_world_selects_shared_controller_and_explicit_trial(self) -> None:
+        actual = make_pilot_world(
+            self.original, camera_tilt_rad=-0.5236, trial_id="calib01_tilt30_p1"
+        )
+        self.assertIn("translation 0 0 -8.8", actual)
+        self.assertIn("rotation 0 1 0 0", actual)
+        self.assertIn("resolution -1", actual)
+        self.assertIn("rotation 1 0 0 -0.5236", actual)
+        self.assertIn('controller "experiment_test_controller"', actual)
+        self.assertIn('controllerArgs "experiment=002;trial=calib01_tilt30_p1"', actual)
+        self.assertNotIn('controller "fool_controller"', actual)
+        self.assertEqual(self.original.splitlines()[0], actual.splitlines()[0])
+        self.assertIn("translation 0 0 -9.05", self.original)
 
-    def test_missing_or_duplicate_nodes_fail_closed(self) -> None:
+    def test_invalid_source_pose_and_trial_fail_closed(self) -> None:
         with self.assertRaises(ValueError):
-            make_pilot_world(self.original.replace('Pioneer2 {', 'Robot {'))
+            make_pilot_world(self.original.replace("Pioneer2 {", "Robot {"), trial_id="p1")
         with self.assertRaises(ValueError):
-            make_pilot_world(self.original.replace('resolution 3', ''))
+            make_pilot_world(self.original.replace("resolution 3", ""), trial_id="p1")
         with self.assertRaises(ValueError):
-            make_pilot_world(self.original.replace('DEF SPHERICAL_CAMERA', 'DEF OTHER_CAMERA'))
+            make_pilot_world(self.original, z=float("nan"), trial_id="p1")
         with self.assertRaises(ValueError):
-            make_pilot_world(self.original + self.original)
+            make_pilot_world(self.original, trial_id="../unsafe")
+        with self.assertRaises(ValueError):
+            make_pilot_world(
+                self.original.replace(
+                    'controller "fool_controller"',
+                    'controller "fool_controller"\n  controllerArgs "existing"',
+                ),
+                trial_id="p1",
+            )
 
-    def test_non_finite_values_are_rejected(self) -> None:
-        with self.assertRaises(ValueError):
-            make_pilot_world(self.original, z=float('nan'))
-        with self.assertRaises(ValueError):
-            make_pilot_world(self.original, camera_tilt_rad=float('inf'))
-
-    def test_original_world_is_unchanged_and_outputs_are_idempotent(self) -> None:
-        with tempfile.TemporaryDirectory() as temp:
-            base = Path(temp)
-            source = base / 'final_scenario01.wbt'
-            source.write_text(self.original, encoding='utf-8')
-            outputs = generate_variants(source, base / 'worlds')
-            self.assertEqual(len(outputs), 3)
-            self.assertEqual([p.name for p in outputs], [
-                'exp002_camera_01_tilt45.wbt',
-                'exp002_camera_01_tilt30.wbt',
-                'exp002_camera_01_horizontal.wbt',
-            ])
-            self.assertEqual(source.read_text(encoding='utf-8'), self.original)
-            self.assertEqual(generate_variants(source, base / 'worlds'), outputs)
-            outputs[0].write_text('user changes', encoding='utf-8')
+    def test_generator_writes_one_reproducible_copy_and_protects_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            source = root / "final_scenario01.wbt"
+            output = root / "experiment_test_scenario01.wbt"
+            source.write_text(self.original, encoding="utf-8")
+            generated = generate_test_world(source, output, trial_id="camera_tilt45")
+            self.assertEqual(generated, output)
+            content = output.read_text(encoding="utf-8")
+            self.assertIn('controllerArgs "experiment=002;trial=camera_tilt45"', content)
+            self.assertEqual(
+                generate_test_world(source, output, trial_id="camera_tilt45"), output
+            )
             with self.assertRaises(FileExistsError):
-                generate_variants(source, base / 'worlds')
-            self.assertEqual(source.read_text(encoding='utf-8'), self.original)
-            generate_variants(source, base / 'worlds', overwrite=True)
-            self.assertIn('resolution -1', outputs[0].read_text(encoding='utf-8'))
+                generate_test_world(source, output, trial_id="camera_tilt30")
+            generate_test_world(source, output, trial_id="camera_tilt30", overwrite=True)
+            self.assertIn("camera_tilt30", output.read_text(encoding="utf-8"))
+            self.assertEqual(source.read_text(encoding="utf-8"), self.original)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

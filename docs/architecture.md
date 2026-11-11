@@ -48,6 +48,8 @@ Las conexiones son conceptuales; no son interfaces ya implementadas.
 
 El punto de entrada `fool_controller.cpp` coordina los módulos, sin alojar la lógica de cada algoritmo. Los nuevos .cpp se incorporarán explícitamente al Makefile.
 
+Todos los experimentos con runtime C++ reutilizan `controllers/experiment_test_controller/`, que se configura para la hipótesis activa. Usan una sola copia regenerable de `worlds/final_scenario01.wbt` (`worlds/experiment_test_scenario01.wbt`) y resultados separados por experimento. El harness puede enlazar módulos estables mediante referencias explícitas, pero no comparte el binario ni los loggers de misión. La promoción de un módulo validado se realiza explícitamente y con regresiones.
+
 ## Percepción, mapeo y exploración
 
 1. Transformar las lecturas de la cámara 360° en observaciones radiales solo después de calibrar distancia y error. La cámara no mide distancias directamente.

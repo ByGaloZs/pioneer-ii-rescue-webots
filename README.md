@@ -88,6 +88,8 @@ El controlador dispone de:
 
 Los parámetros de los dispositivos y del modelo cinemático están centralizados en `RobotConfig.h`. Las lecturas de distancia se convierten mediante `DistanceSensorCalibration`; sus resultados son **estimaciones** y deben respetarse los rangos válidos y las saturaciones de cada sensor.
 
+Los diez WBT canónicos y la copia compartida de pruebas configuran GPS con `resolution -1` para evitar cuantización. La resolución se establece en cada mundo, no desde el controlador.
+
 ## Estructura del proyecto
 
 ```text
@@ -107,6 +109,7 @@ Los parámetros de los dispositivos y del modelo cinemático están centralizado
 │   ├── exploration/                # Planificado
 │   ├── planning/                   # Planificado
 │   └── mission/                    # Planificado
+├── controllers/experiment_test_controller/ # Harness runtime único de experimentos
 ├── docs/
 │   ├── architecture.md
 │   ├── decisions.md
@@ -118,9 +121,11 @@ Los parámetros de los dispositivos y del modelo cinemático están centralizado
 ├── tests/
 ├── protos/
 └── worlds/
+    ├── final_scenario01.wbt ... final_scenario10.wbt
+    └── experiment_test_scenario01.wbt # Única copia de pruebas reutilizable
 ```
 
-Las carpetas marcadas como *planificadas* están reservadas para futuras implementaciones; no contienen algoritmos todavía. Se conserva el nombre `fool_controller` porque los escenarios disponibles lo referencian.
+Las carpetas marcadas como *planificadas* están reservadas para futuras implementaciones; no contienen algoritmos todavía. Se conserva el nombre `fool_controller` porque los escenarios canónicos lo referencian. El código experimental con ejecución Webots usa controladores separados (`<exp>_test_controller`) y mundos piloto; no se compila dentro del controlador final.
 
 ### Guía de desarrollo
 
@@ -128,6 +133,7 @@ Las carpetas marcadas como *planificadas* están reservadas para futuras impleme
 - [Arquitectura](docs/architecture.md): módulos y flujo de información.
 - [Decisiones](docs/decisions.md): justificación y estado de elecciones técnicas.
 - [Protocolo experimental](docs/experiments.md): pruebas reproducibles y métricas.
+- [Controlador de prueba compartido](controllers/experiment_test_controller/README.md): harness runtime único para experimentos Webots.
 - [Plan maestro de pruebas](docs/test_plan.md): matriz EXP-001–010, escenarios, arranques y criterios.
 - [Catálogo de escenarios](docs/scenario_catalog.md): comparación estática de los diez archivos WBT.
 - [Mundos originales](worlds/README.md): procedencia, integridad y compatibilidad de los diez `.wbt` de `Práctica06_src.zip`.
@@ -177,3 +183,7 @@ g++ -std=c++11 -Wall -Wextra -pedantic \
 ```
 
 > **Validación pendiente:** compilar y ejecutar el controlador completo dentro de Webots para verificar el comportamiento de los dispositivos en los escenarios de evaluación.
+
+### Ejecutar el controlador aislado de EXP-002
+
+El mundo único `worlds/experiment_test_scenario01.wbt` es una copia reproducible de escenario 01 y selecciona `experiment_test_controller`, no `fool_controller`. Se regenera con los parámetros de cada corrida y se reutiliza para los experimentos. Compilar una sola vez el harness con `make -C controllers/experiment_test_controller`; las salidas se guardan en el directorio `results/` del experimento activo. El flujo está en el [protocolo](docs/experiments.md) y el [README de EXP-002](experiments/exp_002_visual_ranging/README.md).

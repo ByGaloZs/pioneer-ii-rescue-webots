@@ -2,10 +2,18 @@
 
 **Estado:** accepted. **Fecha:** 2026-11-10. **Hipótesis:** GPS, brújula, encoders, 16 sensores de distancia y ambas cámaras se inicializan y proporcionan lecturas/diagnósticos válidos sin mover el robot.
 
+## Aislamiento y corridas históricas
+
+El `fool_controller` estable ya no activa loggers de experimento. Los resultados de esta carpeta son corridas históricas generadas por una versión anterior del controlador; no se debe volver a habilitar su logger editando el punto de entrada final. Si se necesitan nuevas capturas runtime, se configura el controlador compartido `controllers/experiment_test_controller/` y la copia única `worlds/experiment_test_scenario01.wbt`, siguiendo el [protocolo de aislamiento](../../docs/experiments.md). Los resultados nuevos permanecen en este experimento.
+
+Las cuatro corridas registradas se capturaron antes del cambio común a `GPS.resolution -1`; sus lecturas deben interpretarse con la configuración GPS histórica de esos ensayos. Los mundos actuales tienen resolución `-1`, pero esto no recalcula ni modifica resultados previos.
+
 **Escenarios de EXP-001:** 01 (base), 07 (niebla `EXPONENTIAL2`), 08 (configuración visual distinta), 10 (máxima cantidad de cajas). Se generaron cuatro corridas, una por mundo de la matriz; el logger no capturó el identificador del escenario por corrida. La cobertura de los diez mundos corresponde a una puerta de integración posterior, no al alcance de este experimento.
 
 ## Procedimiento
-1. Abrir una copia del WBT, compilar `fool_controller` y verificar los logs de inicio (`[STARTUP]`, `[CAMERAS]`, `[START]`, `[SENSORS]`).
+Estos pasos describen la corrida histórica que produjo los resultados registrados; con el controlador estable actual no activan el logger histórico de EXP-001.
+
+1. Abrir una copia del WBT y compilar `fool_controller`; verificar los logs de inicio (`[STARTUP]`, `[CAMERAS]`, `[START]`, `[SENSORS]`).
 2. Registrar pose, orientación, cámara frontal/esférica, rangos válidos y estados de cada sensor; comprobar motores detenidos.
 3. Variar orientación/posición de arranque en la zona permitida cuando se haya validado el protocolo S1–S3.
 4. Repetir y documentar diagnósticos por escenario sin alterar la calibración.
@@ -30,9 +38,9 @@
 
 Los datos sostienen la aceptación de la **validación inicial de dispositivos** para las cuatro corridas realizadas. Cada ejecución dejó una sola muestra, por lo que no demuestra estabilidad durante una prueba prolongada. Los registros automáticos no asocian cada carpeta con un número de escenario; esa asociación no se infiere de los mundos.
 
-## Registro automático (cuando EXP-001 está habilitado)
+## Registro automático histórico
 
-El controlador actual está configurado para ejecutar únicamente el registro de EXP-002. Para nuevas corridas de EXP-001, hay que volver a habilitar explícitamente `Exp001Logger` en el punto de entrada y en el Makefile del controlador.
+El logger descrito a continuación pertenece al prototipo histórico `Exp001Logger`; no está enlazado al controlador estable actual. No volver a agregarlo a `controllers/fool_controller/` para hacer nuevas corridas.
 
 Cuando se habilita, al iniciar el controlador se crea una carpeta única `results/run_YYYYMMDD_HHMMSS/` (con sufijo si coincide el nombre) que contiene:
 
