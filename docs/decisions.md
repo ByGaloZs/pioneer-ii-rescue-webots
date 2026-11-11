@@ -17,13 +17,17 @@ Cada decisión conserva contexto, alternativas, justificación, consecuencias y 
 ## ADR-005 — A* con ocupación confirmada
 **Estado:** adoptada para el diseño. **Decisión:** planificar hasta fronteras mediante A* solo por celdas confirmadas como libres e infladas; replanificar ante riesgo detectado. **Alternativa:** tratar desconocido como libre o depender de Bug2. **Motivo:** navegación segura con memoria. **Limitación:** A* no descubre obstáculos por sí solo. **Prueba:** colisiones y replanteos eficaces.
 
-## ADR-006 — Separar experimentos
-**Estado:** adoptada. **Decisión:** carpetas `experiments/exp_NNN_short_name`, protocolo reproducible y registro de resultados, sin prototipos dentro del controlador de misión. **Alternativa:** archivos y salidas mezclados. **Motivo:** trazabilidad y evidencia para memoria final. **Prueba:** reproducibilidad y registro de fallos/decisiones.
+## ADR-006 — Aislar experimentos del controlador estable
+**Estado:** adoptada. **Decisión:** mantener hipótesis, código offline y resultados por experimento; todos los ensayos Webots reutilizan un solo `controllers/experiment_test_controller/` y una única copia regenerable de scenario 01 en `worlds/experiment_test_scenario01.wbt`. El mundo recibe experimento/trial explícitos y el controlador escribe solo en la carpeta de resultados del experimento activo. `fool_controller` no escribe resultados experimentales. **Alternativa:** loggers/prototipos en el controlador de misión o un controlador y mundo separado por experimento. **Motivo:** evitar contaminación de resultados y facilitar desarrollo incremental en el mismo escenario base, preservando una línea base estable. **Promoción:** integrar únicamente módulos validados, sin reemplazar el punto de entrada ni los mundos canónicos. **Prueba:** el único WBT selecciona el harness correcto y solo produce resultados en la carpeta del experimento activo.
 
 ## ADR-007 — Presupuesto temporal explícito
 **Estado:** pendiente de calibración. **Decisión:** supervisar tiempo simulado y estimar coste de retorno; evitar una reserva arbitraria antes de medir. **Alternativa:** umbral fijo. **Motivo:** misión de 240 s y necesidad de regresar. **Prueba:** tiempos por fase y éxito en escenarios representativos.
+
+## ADR-008 — Resolución del GPS sin cuantización
+**Estado:** adoptada. **Decisión:** configurar `GPS.resolution -1` en los diez mundos canónicos y en la copia compartida de pruebas. **Alternativa:** conservar la resolución original de 3 m. **Motivo:** evitar cuantización de la posición GPS durante validación y navegación. **Alcance:** es un cambio explícito en los WBT; la API del controlador lee el GPS, pero la resolución la configura cada mundo. No se alteran otros campos originales. **Verificación:** comprobar `resolution -1` en todos los WBT y registrar sus hashes actuales en `worlds/README.md`.
 
 ## Historial
 - **2026-11-10:** decisiones de diseño registradas. Los algoritmos de navegación y rescate aún no se consideran validados.
 
 - **2026-11-10 (EXP-002 V3):** proyección esférica por columnas y estimación suelo-rayo offline implementadas como prototipo; no validadas con Webots ni fusionadas con sensores IR.
+- **2026-11-11:** el usuario precisó que el proyecto debe usar un solo harness y una copia compartida de scenario 01 para todos los experimentos; se ajustó la decisión a ese flujo. La compilación y ejecución de Webots deben verificarse en el entorno de desarrollo.

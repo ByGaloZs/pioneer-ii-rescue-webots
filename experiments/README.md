@@ -1,6 +1,6 @@
 # Registro de experimentos
 
-Pruebas aisladas de navegación, percepción y rescate. [Plan maestro](../docs/test_plan.md) · [Catálogo WBT](../docs/scenario_catalog.md) · [Protocolo general](../docs/experiments.md) · [Plantilla](_template/README.md).
+Pruebas aisladas de navegación, percepción y rescate. Los experimentos Webots comparten un controlador de pruebas y una copia de scenario 01, configurados para la hipótesis activa. [Protocolo](../docs/experiments.md) · [Plan maestro](../docs/test_plan.md) · [Catálogo WBT](../docs/scenario_catalog.md) · [Plantilla](_template/README.md).
 
 | Experimento | Tema | Escenarios de desarrollo |
 | --- | --- | --- |
@@ -15,4 +15,6 @@ Pruebas aisladas de navegación, percepción y rescate. [Plan maestro](../docs/t
 | [EXP-009](exp_009_return_navigation/README.md) | Regreso | 01, 03, 07, 10 |
 | [EXP-010](exp_010_full_mission/README.md) | Misión completa | 01, 07, 10; luego los 10 |
 
-**Estado de los diez experimentos: planned.** Este índice solo define pruebas, no resultados. Cada corrida debe producir evidencias y conclusiones, incluso si falla.
+**Secuencia:** ejecutar primero EXP-001–010 sobre la copia común de escenario 01 para validar incrementalmente la línea base. Cuando el conjunto funcione, pasar a condiciones representativas y, para ida/misión completa, completar la matriz de los diez escenarios y tres poses verificadas.
+
+**Estado:** EXP-001 `accepted`; EXP-002 `in_progress`; EXP-003–010 `planned`. La etiqueta de estado y las evidencias específicas están en el README de cada experimento. Cada corrida debe producir evidencias y conclusiones, incluso si falla.

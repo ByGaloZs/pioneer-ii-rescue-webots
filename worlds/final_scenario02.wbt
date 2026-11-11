@@ -1491,7 +1491,7 @@ Pioneer2 {
     Compass {
     }
     GPS {
-      resolution 3
+      resolution -1
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05

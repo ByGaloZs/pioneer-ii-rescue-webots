@@ -1,6 +1,5 @@
 #include "Exp002Logger.h"
 
-#include <cstdlib>
 #include <ctime>
 #include <iomanip>
 #include <iostream>
@@ -36,10 +35,6 @@ bool isDirectory(const std::string &path) {
 }
 
 std::string resultsRoot() {
-  const char *configuredRoot = std::getenv("EXP002_RESULTS_ROOT");
-  if (configuredRoot != 0 && configuredRoot[0] != '\0')
-    return configuredRoot;
-
   char workingDirectory[4096];
 #ifdef _WIN32
   if (_getcwd(workingDirectory, sizeof(workingDirectory)) == 0)
@@ -115,8 +110,8 @@ bool Exp002Logger::initialize(int timeStepMs,
   const std::string root = resultsRoot();
   if (root.empty() || (!isDirectory(root) && !makeDirectory(root) &&
                        !isDirectory(root))) {
-    std::cerr << "EXP-002 logger: results directory not found. Start Webots "
-                 "from within the project or set EXP002_RESULTS_ROOT."
+    std::cerr << "EXP-002 logger: experiment results directory not found. "
+                 "Start Webots from within the project."
               << std::endl;
     return false;
   }
