@@ -15,12 +15,13 @@ from pathlib import Path
 ROBOT_POSE = re.compile(
     r"(?P<header>^Pioneer2\s*\{\s*\n)"
     r"(?P<translation>[ \t]*translation[ \t]+[^\n]+\n)"
-    r"(?P<rotation>[ \t]*rotation[ \t]+[^\n]+\n)",
+    r"(?P<rotation>[ \t]*rotation[ \t]+[^\n]+\n)?",
     re.MULTILINE,
 )
-GPS_RESOLUTION = re.compile(
-    r"(?P<prefix>\bGPS\s*\{\s*\n[ \t]*resolution[ \t]+)"
-    r"(?P<value>[^\s\}]+)",
+GPS_HEADER = re.compile(
+    r"(?P<prefix>^(?P<indent>[ \t]*)GPS\s*\{\s*\n)"
+    r"(?:(?P<field_indent>[ \t]*)resolution[ \t]+[^\s\}]+[^\n]*\n)?",
+    re.MULTILINE,
 )
 SPHERICAL_ROTATION = re.compile(
     r"(?P<prefix>^\s*DEF SPHERICAL_CAMERA Camera\s*\{\s*\n"
@@ -41,6 +42,16 @@ def _replace_one(source: str, pattern: re.Pattern[str], value: str, label: str) 
         raise ValueError(f"Expected exactly one {label} definition; found {len(matches)}")
     match = matches[0]
     return source[: match.start()] + match.group("prefix") + value + source[match.end() :]
+
+
+def _set_gps_resolution(source: str) -> str:
+    matches = list(GPS_HEADER.finditer(source))
+    if len(matches) != 1:
+        raise ValueError(f"Expected exactly one GPS definition; found {len(matches)}")
+    match = matches[0]
+    indent = match.group("field_indent") or (match.group("indent") + "  ")
+    replacement = match.group("prefix") + indent + "resolution -1\n"
+    return source[: match.start()] + replacement + source[match.end() :]
 
 
 def _strip_camera_debug_geometry(source: str) -> str:
@@ -78,7 +89,7 @@ def make_pilot_world(
     x: float = 0.0,
     z: float = -8.8,
     yaw: float = 0.0,
-    camera_tilt_rad: float = -0.7854,
+    camera_tilt_rad: float = -0.5236,
     *,
     trial_id: str,
     strip_camera_debug: bool = False,
@@ -99,7 +110,7 @@ def make_pilot_world(
         f"  rotation 0 1 0 {yaw:g}\n"
     )
     result = source[: match.start()] + pose + source[match.end() :]
-    result = _replace_one(result, GPS_RESOLUTION, "-1", "GPS resolution")
+    result = _set_gps_resolution(result)
     result = _replace_one(
         result,
         SPHERICAL_ROTATION,
@@ -127,7 +138,7 @@ def generate_test_world(
     x: float = 0.0,
     z: float = -8.8,
     yaw: float = 0.0,
-    camera_tilt_rad: float = -0.7854,
+    camera_tilt_rad: float = -0.5236,
     trial_id: str,
     strip_camera_debug: bool = False,
     overwrite: bool = False,
@@ -164,7 +175,7 @@ def main() -> int:
     parser.add_argument("--x", type=float, default=0.0)
     parser.add_argument("--z", type=float, default=-8.8)
     parser.add_argument("--yaw", type=float, default=0.0)
-    parser.add_argument("--camera-tilt-rad", type=float, default=-0.7854)
+    parser.add_argument("--camera-tilt-rad", type=float, default=-0.5236)
     parser.add_argument("--trial-id", required=True)
     parser.add_argument("--strip-camera-debug", action="store_true")
     parser.add_argument("--overwrite", action="store_true")

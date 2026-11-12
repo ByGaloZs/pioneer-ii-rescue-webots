@@ -61,8 +61,9 @@ class SectorObservation:
 def classify_pixels(image_bgr: np.ndarray, mask: np.ndarray, config: AngularConfig) -> np.ndarray:
     """Return 0=unknown, 1=floor candidate, 2=cyan obstacle, 3=green victim.
 
-    Floor pixels must belong to a gray component touching the BOTTOM strip.
-    This is intentionally conservative for images where robot/body is visible.
+    Floor pixels must belong to a gray component touching either the unmasked
+    bottom strip or the visible edge of a self-occlusion mask. The latter
+    supports camera views where the robot body occupies the image bottom.
     """
     if image_bgr.dtype != np.uint8 or image_bgr.ndim != 3 or image_bgr.shape[2] != 3:
         raise ValueError("Expected uint8 BGR image")
@@ -80,14 +81,24 @@ def classify_pixels(image_bgr: np.ndarray, mask: np.ndarray, config: AngularConf
     labels = np.zeros((height, width), dtype=np.uint8)
     labels[cyan & ~green] = 2
     labels[green & ~cyan] = 3
-    # Remove disconnected gray islands (which might be robot body). This
-    # does NOT prove the retained region is floor; verification is external.
+    # Keep gray components connected to a known image anchor. The image bottom
+    # is the legacy anchor; with the robot masked there, use gray pixels
+    # immediately adjacent to the robot silhouette instead. This only creates
+    # floor candidates: visual review is still required before metric use.
     count, components = cv2.connectedComponents(floor.astype(np.uint8), connectivity=8)
     bottom = max(1, round(height * .08))
+    bottom_anchor = np.zeros((height, width), dtype=bool)
+    bottom_anchor[-bottom:, :] = True
+    if np.any(mask):
+        kernel = np.ones((3, 3), dtype=np.uint8)
+        mask_edge = (cv2.dilate(mask.astype(np.uint8), kernel, iterations=1) != 0) & ~mask
+    else:
+        mask_edge = np.zeros((height, width), dtype=bool)
+    seed = floor & (bottom_anchor | mask_edge)
+    seeded_components = np.unique(components[seed])
     for component in range(1, count):
-        component_pixels = components == component
-        if np.any(component_pixels[-bottom:, :]):
-            labels[component_pixels] = 1
+        if np.any(seeded_components == component):
+            labels[components == component] = 1
     labels[mask] = 0
     return labels
 
@@ -95,8 +106,9 @@ def classify_pixels(image_bgr: np.ndarray, mask: np.ndarray, config: AngularConf
 def _contact_row(labels: np.ndarray, mask: np.ndarray, x: int, cfg: AngularConfig):
     """Read one vertical image column from bottom upwards (near to far).
 
-    If self-occlusion masks the bottom of a column, it remains unknown even
-    if a further boundary is eventually measurable. Returned flag records it.
+    Masked pixels stay unknown. A mask below a visible floor run leaves near
+    field unknown but does not hide a farther floor-to-obstacle boundary. A
+    mask between that floor run and the boundary makes the contact unknown.
     """
     floor_run = 0
     skipped_mask = False

@@ -17,4 +17,4 @@ Pruebas aisladas de navegación, percepción y rescate. Los experimentos Webots 
 
 **Secuencia:** ejecutar primero EXP-001–010 sobre la copia común de escenario 01 para validar incrementalmente la línea base. Cuando el conjunto funcione, pasar a condiciones representativas y, para ida/misión completa, completar la matriz de los diez escenarios y tres poses verificadas.
 
-**Estado:** EXP-001 `accepted`; EXP-002 `in_progress`; EXP-003–010 `planned`. La etiqueta de estado y las evidencias específicas están en el README de cada experimento. Cada corrida debe producir evidencias y conclusiones, incluso si falla.
+**Estado:** EXP-001 `accepted`; EXP-002 `partially_closed` (consistencia geométrica simulada, escenario 01); EXP-003–010 `planned`. EXP-003 es el siguiente experimento previsto y comienza con el piloto de escenario 01 solicitado; no implica validación en otros mundos. La etiqueta de estado y las evidencias específicas están en el README de cada experimento. Cada corrida debe producir evidencias y conclusiones, incluso si falla.

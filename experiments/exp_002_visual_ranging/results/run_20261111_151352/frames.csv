@@ -1,0 +1,2 @@
+frame_index,simulation_time_s,gps_valid,gps_x_m,gps_z_m,compass_valid,heading_rad,image_available,image_saved,image_file,image_width_px,image_height_px,camera_fov_rad,trial_id
+0,1.024000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000000.jpg,160,160,3.141500,calib01_tilt30_p1

@@ -97,7 +97,7 @@ class SharedWorldCalibrationTests(unittest.TestCase):
             source = root / "source.wbt"
             output = root / "experiment_test_scenario01.wbt"
             source.write_text(ORIGINAL, encoding="utf-8")
-            generate_test_world(source, output, trial_id="tilt45")
+            generate_test_world(source, output, trial_id="calib01_tilt30_p2")
             with self.assertRaises(FileExistsError):
                 generate_test_world(
                     source,

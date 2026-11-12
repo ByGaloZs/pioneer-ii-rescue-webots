@@ -13,8 +13,8 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from angular_observations import AngularConfig, observe_sectors
-from analyze_runs import analyze_run
+from angular_observations import AngularConfig, classify_pixels, observe_sectors
+from analyze_runs import CALIBRATION_TRIAL_ID, analyze_run
 from spherical_geometry import SphericalCameraModel
 
 
@@ -55,6 +55,11 @@ class GeometryTests(unittest.TestCase):
         self.assertIsNone(model.contact_on_ground(79.5, 79.5))
         self.assertIsNotNone(model.contact_on_ground(79.5, 125))
 
+    def test_geometry_trial_labels_are_accepted_for_camera_analysis(self):
+        self.assertIsNotNone(CALIBRATION_TRIAL_ID.fullmatch("geom01_tilt30_right_r01"))
+        self.assertIsNotNone(CALIBRATION_TRIAL_ID.fullmatch("geom01_tilt30_left_r02"))
+        self.assertIsNotNone(CALIBRATION_TRIAL_ID.fullmatch("geom01_tilt30_front_r01"))
+
 
 class AngularObservationTests(unittest.TestCase):
     def setUp(self):
@@ -74,6 +79,25 @@ class AngularObservationTests(unittest.TestCase):
         self.assertTrue(all(row.status == "unknown" and row.distance_m is None for row in observations))
         self.assertTrue(all(row.reason == "unverified_self_occlusion_mask" for row in observations))
 
+    def test_gray_floor_is_seeded_from_robot_mask_when_robot_covers_bottom(self):
+        image = np.full((160, 160, 3), (249, 247, 246), np.uint8)
+        image[:70, :] = self.cyan
+        image[70:105, :] = (77, 77, 77)
+        robot_mask = np.zeros((160, 160), bool)
+        robot_mask[105:, :] = True
+
+        labels = classify_pixels(image, robot_mask, AngularConfig())
+        self.assertTrue(np.all(labels[70:105, :] == 1))
+        self.assertTrue(np.all(labels[:70, :] == 2))
+        self.assertTrue(np.all(labels[105:, :] == 0))
+
+        observations, _ = observe_sectors(
+            image, self.model, occlusion_mask=robot_mask, mask_verified=True
+        )
+        center = [row for row in observations if row.sector_id in (7, 8)]
+        self.assertTrue(all(row.status == "occupied" for row in center))
+        self.assertTrue(all(row.near_field_occluded for row in center))
+
     def test_center_columns_have_plausible_floor_contact(self):
         image = self.image_with_contact()
         observations, labels = observe_sectors(
@@ -87,17 +111,31 @@ class AngularObservationTests(unittest.TestCase):
         self.assertTrue(all(.5 <= r.distance_m <= 1.2 for r in center))
         self.assertTrue(any(r.status == "unknown" for r in observations))
 
-    def test_occluded_or_unrecognized_foreground_fails_closed(self):
+    def test_near_field_mask_preserves_visible_contact_but_not_ambiguous_contact(self):
         image = self.image_with_contact()
         mask = np.zeros((160, 160), bool)
         mask[100:, :] = True
         observations, _ = observe_sectors(image, self.model,
                                           occlusion_mask=mask, mask_verified=True)
-        self.assertTrue(all(o.status == "unknown" for o in observations))
+        center = [o for o in observations if o.sector_id in (7, 8)]
+        self.assertTrue(all(o.status == "occupied" for o in center))
+        self.assertTrue(all(o.near_field_occluded for o in center))
         image[95:102, :] = (0, 0, 255)
         observations, _ = observe_sectors(image, self.model,
                                           occlusion_mask=np.zeros_like(mask), mask_verified=True)
         self.assertTrue(all(o.status == "unknown" for o in observations if o.sector_id in (7, 8)))
+
+    def test_mask_between_visible_floor_and_contact_keeps_contact_unknown(self):
+        image = self.image_with_contact()
+        mask = np.zeros((160, 160), dtype=bool)
+        mask[75:85, :] = True
+        observations, _ = observe_sectors(
+            image, self.model, occlusion_mask=mask, mask_verified=True
+        )
+        center = [row for row in observations if row.sector_id in (7, 8)]
+        self.assertTrue(all(row.status == "unknown" for row in center))
+        self.assertTrue(all(row.reason == "occlusion_after_floor" for row in center))
+        self.assertTrue(all(row.distance_m is None for row in center))
 
     def test_no_floor_is_not_free(self):
         image = np.full((160, 160, 3), self.cyan, np.uint8)
@@ -124,7 +162,7 @@ class AngularObservationTests(unittest.TestCase):
             cv2.imwrite(str(run / "frame_000000.jpg"), image)
             (run / "frames.csv").write_text(
                 "image_saved,image_file,camera_fov_rad,trial_id\n"
-                "1,frame_000000.jpg,3.1415,calib01_tilt30_p1\n", encoding="utf-8"
+                "1,frame_000000.jpg,3.1415,calib01_tilt30_p1_r01\n", encoding="utf-8"
             )
             out = base / "analysis"
             summary = analyze_run(run, output_dir=out)

@@ -192,13 +192,13 @@ class PilotWorldTest(unittest.TestCase):
             "    }\n"
             "  ]\n}\n"
         )
-        changed = make_pilot_world(original, trial_id="camera_tilt45")
+        changed = make_pilot_world(original, trial_id="calib01_tilt30_p1")
         self.assertIn("translation 0 0 -8.8", changed)
         self.assertIn("rotation 0 1 0 0", changed)
         self.assertIn("resolution -1", changed)
-        self.assertIn("rotation 1 0 0 -0.7854", changed)
+        self.assertIn("rotation 1 0 0 -0.5236", changed)
         self.assertIn('controller "experiment_test_controller"', changed)
-        self.assertIn('controllerArgs "experiment=002;trial=camera_tilt45"', changed)
+        self.assertIn('controllerArgs "experiment=002;trial=calib01_tilt30_p1"', changed)
         self.assertEqual(original.splitlines()[0], changed.splitlines()[0])
         self.assertIn("translation 0 0 -9.05", original)
 

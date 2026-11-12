@@ -1,0 +1,2 @@
+measurement_type,run_id,frame_file,sector_id,image_x_px,image_y_px,reference_bearing_deg,reference_distance_m,reference_method,notes
+range,run_20261111_195735,frame_000001.jpg,10,,,,1.2447396376,Offline ray-plane intersection with solid2 face using recorded GPS/yaw,Simulation geometry check only and conditional on observed sector bearing
