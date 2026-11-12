@@ -18,6 +18,10 @@ experiments/**/videos/
 experiments/**/recordings/
 experiments/**/screenshots/
 
+# Generated results (keep the directory in Git)
+results/*
+!results/.gitkeep
+
 # OS / local tools
 .DS_Store
 Thumbs.db
