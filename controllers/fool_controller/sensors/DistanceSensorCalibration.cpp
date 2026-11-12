@@ -1,78 +1,77 @@
 #include "DistanceSensorCalibration.h"
 
 #include <cmath>
-#include <cstddef>
-
-#include "../config/RobotConfig.h"
 
 namespace sensor_calibration {
-namespace {
 
-struct LookupPoint {
-  double distanceM;
-  double response;
-};
-
-const LookupPoint kLaserLookup[] = {
-    {0.0, 1020.0}, {0.08, 1020.0}, {0.25, 400.0}, {0.35, 100.0}, {0.4, 0.0}};
-const LookupPoint kLongRangeLookup[] = {
-    {0.0, 1024.0}, {0.2, 1024.0}, {0.7, 400.0}, {0.9, 100.0}, {1.0, 0.0}};
-const LookupPoint kShortRangeLookup[] = {
-    {0.0, 1024.0}, {0.2, 1024.0}, {0.4, 0.0}};
-
-}  // namespace
-
-DistanceSensorEstimate fromResponse(int sensorIndex, double response) {
+DistanceSensorEstimate fromLookupTable(const double *lookupTable,
+                                       int pointCount, double response,
+                                       double reflectionFactor) {
   DistanceSensorEstimate estimate;
-  const double maximumRangeM =
-      robot_config::distanceSensorMaximumRangeM(sensorIndex);
+  if (lookupTable == 0 || pointCount < 2 ||
+      !std::isfinite(reflectionFactor) || reflectionFactor <= 0.0 ||
+      reflectionFactor > 1.0)
+    return estimate;
+
+  const int last = (pointCount - 1) * 3;
+  const double maximumRangeM = lookupTable[last];
+  if (!std::isfinite(maximumRangeM) || maximumRangeM <= lookupTable[0])
+    return estimate;
   estimate.distanceM = maximumRangeM;
 
   if (!std::isfinite(response) || response <= 0.0)
     return estimate;
 
   estimate.detected = true;
-  if (response >= robot_config::distanceSensorSaturationResponse(sensorIndex)) {
-    // The lookup table is flat over its near range, so the exact distance is
-    // unavailable when the response saturates.
-    estimate.distanceM =
-        robot_config::distanceSensorNearSaturationM(sensorIndex);
+  const double maximumResponse = lookupTable[1];
+  if (!std::isfinite(maximumResponse))
+    return DistanceSensorEstimate();
+
+  if (response >= maximumResponse) {
+    // A response plateau cannot resolve exact near distance. Report its far
+    // boundary as the saturation limit, using the active device's table.
     estimate.nearSaturated = true;
+    estimate.nearSaturationLimitM = lookupTable[0] * reflectionFactor;
+    for (int i = 1; i < pointCount; ++i) {
+      const int current = i * 3;
+      if (!std::isfinite(lookupTable[current]) ||
+          !std::isfinite(lookupTable[current + 1]))
+        return DistanceSensorEstimate();
+      if (lookupTable[current + 1] != maximumResponse)
+        break;
+      estimate.nearSaturationLimitM = lookupTable[current] * reflectionFactor;
+    }
+    estimate.distanceM = estimate.nearSaturationLimitM;
     return estimate;
   }
 
-  const LookupPoint *lookup;
-  std::size_t pointCount;
-  if (robot_config::usesFrontLaserLookupProfile(sensorIndex)) {
-    lookup = kLaserLookup;
-    pointCount = sizeof(kLaserLookup) / sizeof(kLaserLookup[0]);
-  } else if (robot_config::isLongRangeDistanceSensor(sensorIndex)) {
-    lookup = kLongRangeLookup;
-    pointCount = sizeof(kLongRangeLookup) / sizeof(kLongRangeLookup[0]);
-  } else {
-    lookup = kShortRangeLookup;
-    pointCount = sizeof(kShortRangeLookup) / sizeof(kShortRangeLookup[0]);
-  }
+  for (int i = 1; i < pointCount; ++i) {
+    const int nearIndex = (i - 1) * 3;
+    const int farIndex = i * 3;
+    const double nearDistance = lookupTable[nearIndex];
+    const double farDistance = lookupTable[farIndex];
+    const double nearResponse = lookupTable[nearIndex + 1];
+    const double farResponse = lookupTable[farIndex + 1];
+    if (!std::isfinite(nearDistance) || !std::isfinite(farDistance) ||
+        !std::isfinite(nearResponse) || !std::isfinite(farResponse) ||
+        farDistance <= nearDistance)
+      return DistanceSensorEstimate();
 
-  for (std::size_t i = 1; i < pointCount; ++i) {
-    const LookupPoint &nearPoint = lookup[i - 1];
-    const LookupPoint &farPoint = lookup[i];
-    if (nearPoint.response > farPoint.response &&
-        response <= nearPoint.response && response >= farPoint.response) {
-      const double responseFraction =
-          (nearPoint.response - response) /
-          (nearPoint.response - farPoint.response);
+    if (nearResponse > farResponse && response <= nearResponse &&
+        response >= farResponse) {
+      const double fraction =
+          (nearResponse - response) / (nearResponse - farResponse);
       estimate.distanceM =
-          nearPoint.distanceM +
-          responseFraction * (farPoint.distanceM - nearPoint.distanceM);
+          (nearDistance + fraction * (farDistance - nearDistance)) *
+          reflectionFactor;
       return estimate;
     }
   }
 
-  // A positive response outside the specified curve can only be interpreted
-  // conservatively as a near-saturated return.
-  estimate.distanceM = robot_config::distanceSensorNearSaturationM(sensorIndex);
+  // Positive values beyond the table's maximum are near-saturated.
   estimate.nearSaturated = true;
+  estimate.nearSaturationLimitM = lookupTable[0] * reflectionFactor;
+  estimate.distanceM = estimate.nearSaturationLimitM;
   return estimate;
 }
 

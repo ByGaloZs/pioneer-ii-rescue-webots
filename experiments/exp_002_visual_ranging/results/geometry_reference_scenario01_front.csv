@@ -1,8 +1,0 @@
-measurement_type,run_id,frame_file,sector_id,image_x_px,image_y_px,reference_bearing_deg,reference_distance_m,reference_method,notes
-range,run_20261111_203724,frame_000001.jpg,4,,,,0.9164452990,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,5,,,,0.7911088955,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,6,,,,0.7233356623,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,8,,,,0.7026085264,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,9,,,,0.7431027486,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,10,,,,0.8243819229,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face
-range,run_20261111_203724,frame_000001.jpg,11,,,,0.9649297246,Offline ray-plane intersection with solid10 face using logged pose and candidate bearing,Simulator geometry comparison; wall hit lies on finite face

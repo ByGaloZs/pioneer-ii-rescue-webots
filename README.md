@@ -1,189 +1,116 @@
-# Rescate autónomo con Pioneer II
+# Rescate con Pioneer II 
 
-Controlador de navegación autónoma en **Webots (C++)** para el robot **Pioneer II**. El sistema debe explorar un entorno desconocido, evitar colisiones, localizar a dos víctimas representadas por cilindros verdes y regresar a la zona de salida.
+Controlador `fool_controller` (C++, Webots) para el trabajo final de Robótica.
+Se construye por pasos; cada paso deja el robot funcionando antes de pasar al siguiente.
 
-## Objetivo de la misión
+| Paso | Contenido | Estado |
+|---|---|---|
+| 1 | Sensores configurados y calibrados: GPS, brújula, encoders, 16 infrarrojos | **Hecho** (calibrado en escenario 01, 2026-11-12) |
+| 2 | Ir hasta el final evitando obstáculos: mapa + A* con infrarrojos, Bug reactivo y guía con la cámara frontal | **En pruebas** |
+| 3 | Volver a la salida | Pendiente |
+| 4 | Cámaras: detectar víctimas, aproximarse y girar 360° | Pendiente |
+| 5 | Los 10 escenarios, tiempos y tabla de resultados | Pendiente |
 
-El controlador se evaluará en uno de diez escenarios de **10 × 20 m**, con diferentes configuraciones de obstáculos e iluminación. La posición y orientación iniciales del robot pueden variar dentro de la zona situada detrás de la línea amarilla.
+## Estructura
 
-La misión consiste en:
+```
+controllers/fool_controller/
+├── fool_controller.cpp           bucle principal y selección de modo
+├── config/RobotConfig.h          TODOS los parámetros del robot
+├── common/Angles.h               utilidades de ángulos
+├── common/RunOutput.h            carpeta results/ y etiqueta automática del mundo
+├── sensors/
+│   ├── SensorManager             activa y lee los dispositivos -> SensorSnapshot
+│   ├── SensorSnapshot.h          lecturas de un paso + sectores de distancia en metros
+│   └── DistanceSensorCalibration respuesta IR -> metros (tabla de Webots + factor cian)
+├── localization/Localizer        pose (x, z, yaw): GPS + brújula; odometría de respaldo
+├── perception/FloorSegmenter     cámara frontal: suelo / cian / verde -> espacio libre por dirección
+├── mapping/OccupancyGrid.h       mapa de ocupación 10x20 m (celdas 10 cm) con IR + pose; memoria de lo recorrido
+├── planning/PathPlanner.h        A* optimista sobre el mapa hasta la línea meta
+├── navigation/GoalNavigator      seguir el plan, rodear obstáculos (Bug), cuñas, atascos
+├── mission/OutboundRun           prueba de ida: meta, tiempo límite y métricas -> results.csv
+├── control/
+│   ├── MotorController           velocidades de rueda con saturación
+│   ├── SafetyGuard.h             freno de emergencia con los IR delanteros
+│   └── WheelCommand.h            orden de velocidades que produce cada comportamiento
+└── calibration/SensorCalibration rutina automática de calibración (paso 1)
 
-1. Salir de la zona inicial y llegar al extremo opuesto de la arena sin colisionar.
-2. Detectar los **dos cilindros verdes** que representan a las víctimas.
-3. Acercarse a **menos de 1 m** de cada víctima, detenerse, efectuar un giro completo de **360°** e imprimir un mensaje de rescate.
-4. Regresar a la zona de partida.
-5. Completar la misión en el menor tiempo posible, con un límite de **240 segundos**.
-
-## Enfoque de navegación
-
-Se desarrollará un sistema de **exploración dirigida al objetivo con mapas de ocupación incrementales**. No se requiere identificar cuál de los diez escenarios se está ejecutando ni disponer de un mapa completo al comenzar.
-
-La arquitectura separa cinco responsabilidades:
-
-| Módulo | Responsabilidad |
-| --- | --- |
-| **Localización** | Estimar pose (posición y orientación) con GPS y brújula; apoyar movimientos cortos con encoders. |
-| **Percepción** | Detectar obstáculos y zonas potencialmente transitables mediante los 16 sensores de distancia y las cámaras frontal y esférica. |
-| **Mapeo incremental** | Integrar las observaciones en una rejilla de ocupación con celdas **libres**, **ocupadas** y **desconocidas**. |
-| **Exploración y planificación** | Seleccionar fronteras que favorezcan el progreso y planificar rutas mediante **A\*** sobre espacio confirmado como transitable. |
-| **Control de movimiento** | Seguir rutas locales, ajustar velocidades y priorizar la evasión de obstáculos. |
-
-### Mapa local y mapa acumulado
-
-- El **mapa local** describe el entorno cercano al robot a partir de las lecturas actuales. Sirve para detectar pasos, obstáculos y situaciones de riesgo inmediato.
-- El **mapa acumulado** incorpora las observaciones en un marco de coordenadas común, conserva lo descubierto durante la navegación y ayuda a evitar bucles y a planificar el regreso.
-- Las observaciones se registrarán considerando la incertidumbre de las mediciones. Una zona no observada **no** se tratará automáticamente como libre.
-- Antes de planificar, los obstáculos se ampliarán con un margen de seguridad acorde al tamaño del Pioneer II y al error de percepción.
-
-### Frontier-Based Exploration dirigida al objetivo
-
-Una **frontera** es una celda libre conocida que limita con una región desconocida. En lugar de explorar siempre la frontera más cercana, el robot evaluará las fronteras **alcanzables** según:
-
-- Progreso esperado hacia el extremo opuesto de la arena.
-- Longitud o coste de la ruta necesaria para llegar.
-- Seguridad y anchura estimada del paso.
-- Información nueva que puede descubrirse y penalización por visitas repetidas o rutas bloqueadas.
-
-Una frontera se selecciona como **objetivo intermedio**. **A\*** encuentra una ruta hasta ella a través de celdas verificadas como libres; el controlador local ejecuta el movimiento. Cuando aparecen nuevas observaciones o una ruta deja de ser válida, se actualiza el mapa y se replantea la trayectoria.
-
-Si no existe una ruta conocida hacia el destino final, se sigue explorando mediante fronteras. Si una región está bloqueada, se registra para evitar intentos repetidos.
-
-### Cámara esférica como sensor visual radial
-
-Se investigará el uso de la **cámara de 360° como pseudo-LiDAR visual**, siguiendo el principio de segmentación radial de la práctica de procesamiento de imágenes:
-
-1. Segmentar suelo, paredes y obstáculos visibles.
-2. Identificar límites radiales en la imagen esférica.
-3. Calibrar la relación entre posición del límite en píxeles y distancia real, cuando sea medible.
-4. Fusionar la información visual con los sensores de distancia.
-
-**La cámara no proporciona distancias métricas directamente.** Su utilidad para el mapeo dependerá de pruebas de calibración, iluminación, oclusiones y geometría del escenario. Los sensores de distancia tendrán prioridad en las decisiones inmediatas de seguridad. La detección visual de los cilindros verdes se desarrollará como una función independiente.
-
-## Secuencia de operación prevista
-
-| Estado | Acción |
-| --- | --- |
-| `INITIALIZE` | Iniciar dispositivos, verificar lecturas y registrar la pose inicial. Mantener los motores detenidos. |
-| `INITIAL_SCAN` | Obtener las primeras observaciones y construir el mapa local inicial. |
-| `NAVIGATE` | Orientar el movimiento hacia el extremo opuesto y navegar por espacio libre conocido. |
-| `EXPLORE` | Seleccionar una frontera y calcular una ruta con A*. |
-| `AVOID_OBSTACLE` | Ejecutar maniobras de seguridad y replanificar cuando sea necesario. |
-| `APPROACH_VICTIM` | Detectar una víctima, estimar una aproximación segura y comprobar la distancia. |
-| `RESCUE` | Detenerse a menos de 1 m, girar 360° y registrar el rescate sin duplicarlo. |
-| `RETURN` | Planificar con A* sobre el mapa acumulado para volver al inicio. |
-| `FINISH` | Detener el robot y reportar el resultado de la misión. |
-
-Estos nombres describen el **diseño previsto** de la máquina de estados; todavía no están implementados.
-
-## Sensores y configuración
-
-El controlador dispone de:
-
-- **GPS:** posición estimada en el sistema de coordenadas de Webots.
-- **Brújula:** orientación del robot.
-- **Encoders:** desplazamiento relativo de las ruedas.
-- **16 sensores de distancia:** detección de obstáculos con perfiles de respuesta calibrados.
-- **Cámara frontal (`camera_f`)** y **cámara esférica (`camera_s`)**: adquisición de imágenes para percepción y detección de víctimas.
-- **Dos motores diferenciales:** control independiente de las ruedas.
-
-Los parámetros de los dispositivos y del modelo cinemático están centralizados en `RobotConfig.h`. Las lecturas de distancia se convierten mediante `DistanceSensorCalibration`; sus resultados son **estimaciones** y deben respetarse los rangos válidos y las saturaciones de cada sensor.
-
-Los diez WBT canónicos y la copia compartida de pruebas configuran GPS con `resolution -1` para evitar cuantización. La resolución se establece en cada mundo, no desde el controlador.
-
-## Estructura del proyecto
-
-```text
-.
-├── AGENTS.md
-├── README.md
-├── .gitignore
-├── controllers/fool_controller/
-│   ├── fool_controller.cpp
-│   ├── Makefile
-│   ├── config/                     # Configuración existente
-│   ├── sensors/                    # Lectura y calibración existente
-│   ├── control/                    # Actuación existente
-│   ├── localization/               # Planificado
-│   ├── perception/                 # Planificado
-│   ├── mapping/                    # Planificado
-│   ├── exploration/                # Planificado
-│   ├── planning/                   # Planificado
-│   └── mission/                    # Planificado
-├── controllers/experiment_test_controller/ # Harness runtime único de experimentos
-├── docs/
-│   ├── architecture.md
-│   ├── decisions.md
-│   └── experiments.md
-├── experiments/
-│   ├── README.md
-│   ├── _template/
-│   └── exp_001_sensor_validation/
-├── tests/
-├── protos/
-└── worlds/
-    ├── final_scenario01.wbt ... final_scenario10.wbt
-    └── experiment_test_scenario01.wbt # Única copia de pruebas reutilizable
+results/                          (se crea sola, junto a worlds/) informe de calibración y outbound_results.csv
 ```
 
-Las carpetas marcadas como *planificadas* están reservadas para futuras implementaciones; no contienen algoritmos todavía. Se conserva el nombre `fool_controller` porque los escenarios canónicos lo referencian. El código experimental con ejecución Webots usa controladores separados (`<exp>_test_controller`) y mundos piloto; no se compila dentro del controlador final.
+## Convenios
 
-### Guía de desarrollo
+- **Posición:** coordenadas del mundo de Webots `(x, z)` en metros. La salida está en `z ≈ -9`, las víctimas en `z ≈ +8.5`.
+- **Orientación (yaw):** el mismo ángulo que el campo `rotation 0 1 0 a` de Webots, calculado como `atan2(c[2], c[0])` con los valores de la brújula.
+  - `yaw = π` → mira hacia +Z (hacia las víctimas); `yaw = 0` → mira hacia −Z (hacia la salida).
+  - Girar a la izquierda aumenta el yaw.
+  - Dirección de avance: `(dx, dz) = (−sin yaw, −cos yaw)`.
+- **Infrarrojos:** alcance nominal de 0,4 m, pero Webots atenúa la respuesta según el color. Con obstáculos cian (factor 0,52) el alcance real es de **unos 0,21 m**, así que el robot debe ir despacio cerca de los obstáculos.
+- **GPS:** el mundo usa `resolution -1` (sin cuantizar). Si la evaluación usara el GPS original (3 m), poner `kUseGpsForPosition = false` en `RobotConfig.h`.
 
-- [AGENTS.md](AGENTS.md): reglas para asistentes y colaboradores.
-- [Arquitectura](docs/architecture.md): módulos y flujo de información.
-- [Decisiones](docs/decisions.md): justificación y estado de elecciones técnicas.
-- [Protocolo experimental](docs/experiments.md): pruebas reproducibles y métricas.
-- [Controlador de prueba compartido](controllers/experiment_test_controller/README.md): harness runtime único para experimentos Webots.
-- [Plan maestro de pruebas](docs/test_plan.md): matriz EXP-001–010, escenarios, arranques y criterios.
-- [Catálogo de escenarios](docs/scenario_catalog.md): comparación estática de los diez archivos WBT.
-- [Mundos originales](worlds/README.md): procedencia, integridad y compatibilidad de los diez `.wbt` de `Práctica06_src.zip`.
-- [Experimentos](experiments/README.md): plantillas y registro de cada prueba.
+## Paso 1: calibrar
 
-## Estado de desarrollo
+1. Abrir `worlds/final_scenario01.wbt` y compilar `fool_controller`.
+2. Comprobar que el robot está en su pose original del archivo, `(0, −9.05)`, mirando a +Z.
+3. Ejecutar la simulación. El modo por defecto es `calibrate` (≈40 s simulados):
+   reposo → recta de 1 m → giro de 360° a izquierda y derecha → media vuelta → aproximación lenta a la pared → retroceso.
+4. Al terminar, la consola muestra el **INFORME DE CALIBRACIÓN**, que también se guarda en `results/calibration_report.txt`. Cada comprobación sale como OK, REVISAR o FALLO, y al final aparecen los **valores recomendados** para `RobotConfig.h`. Las muestras de los infrarrojos se guardan en `results/calibration_ir_samples.csv`.
+5. Copiar esos valores en `config/RobotConfig.h`, recompilar y volver a ejecutar. Todo debería salir OK.
 
-**Fase actual: inicialización y lectura de sensores.**
+Modo `monitor`: el robot queda parado y cada segundo imprime la pose y la distancia de cada sector (F, FL, FR, L, R, BL, BR). Sirve para arrastrar el robot en Webots y comprobar los sensores a mano. Se activa con `kStartupMode = StartupMode::kMonitor` en `RobotConfig.h`, o escribiendo `monitor` en el campo `controllerArgs` del robot.
 
-El ejecutable actual:
+## Paso 2: navegación de ida (prueba con y sin cámara)
 
-- Inicializa motores y dispositivos; mantiene las ruedas detenidas.
-- Informa del tamaño de las dos cámaras.
-- Guarda la primera pose GPS/brújula válida.
-- Muestra periódicamente el estado del GPS, brújula, encoders y sensores de distancia.
+El modo por defecto es ahora `navigate`: el robot va desde donde esté hasta cruzar la línea amarilla del fondo (z ≥ 8.2) y se detiene.
 
-**Todavía no se han implementado** el mapa de ocupación, la reconstrucción radial de distancias por visión, Frontier-Based Exploration, A*, la navegación autónoma, la detección/rescate de víctimas ni el retorno.
+Comportamientos (`navigation/GoalNavigator`):
+- **ALIGN**: si la meta queda a más de 60°, gira en el sitio hacia ella.
+- **GO_TO_GOAL**: avanza hacia +Z. **Con cámara**, busca en ±20° el hueco libre más cercano a la meta y adapta la velocidad al espacio libre (hasta ~0,66 m/s). **Sin cámara**, va a ~0,33 m/s.
+- **FOLLOW_WALL_L/R**: al encontrar un obstáculo lo rodea con los infrarrojos. Lo suelta cuando ha avanzado hacia la meta más que en el punto del choque y la dirección de la meta está libre.
+- **REVERSE_OUT / TURN_AROUND**: si el paso se estrecha en cuña o rodeando se aleja más de 1,5 m de la meta, sale marcha atrás y rodea por el otro lado.
+- **RECOVER**: si se ordena avanzar o girar y el robot no se mueve, retrocede y gira.
+- Freno de emergencia (`SafetyGuard`): IR delantero a menos de 6 cm → se anula el avance.
 
-### Plan de implementación y validación
+### Mapa de ocupación y A* (memoria)
 
-1. **Arranque seguro:** comprobar lecturas y orientación en los diez escenarios con distintas poses iniciales.
-2. **Percepción local:** validar rangos y cobertura de los 16 sensores; evaluar experimentalmente la cámara esférica como pseudo-LiDAR.
-3. **Mapa incremental:** representar celdas libres, ocupadas y desconocidas; aplicar márgenes de seguridad y validar contra obstáculos observables.
-4. **Planificador:** seleccionar fronteras útiles, implementar A* y comprobar replanificación ante bloqueos.
-5. **Navegación de ida:** llegar al extremo opuesto en diferentes escenarios sin rescates, registrando tiempo, progreso y colisiones.
-6. **Rescate y regreso:** localizar dos víctimas, confirmar cada rescate y volver al área de salida.
-7. **Evaluación integral:** ejecutar los diez escenarios y medir tasa de éxito, tiempo, colisiones, víctimas detectadas y recorrido de regreso.
+Sin memoria, el Bug vuelve a meterse en los mismos callejones (escenarios 03, 05, 07, 09). Ahora:
 
-## Ejecutar en Webots
+- `mapping/OccupancyGrid.h` construye un mapa de 100 x 200 celdas de 10 cm con los 16 infrarrojos y la pose (no depende de la luz). Las paredes exteriores del recinto (10 x 20 m) se marcan desde el principio. También cuenta cuántas veces ha pasado el robot por cada celda.
+- `planning/PathPlanner.h` calcula con A* el camino más corto hasta la línea meta. Lo desconocido se considera libre (optimista); cuando aparece una pared nueva en el mapa se replanifica. Se prohíben las celdas donde el robot no cabe (0,25 m de un obstáculo) y se encarece pasar pegado a paredes o por zonas ya recorridas.
+- `GoalNavigator` usa la dirección del plan (un punto a 0,8 m sobre la ruta) en lugar de "recto hacia +z". Al chocar rodea por el lado que indica el plan, y si rodeando el plan pide volver atrás (callejón), deja la pared y sigue el plan.
+- Al terminar se guarda el mapa en `results/map_<tag>_<cam|nocam>.txt` (dibujo ASCII, útil para el informe).
+- Con `nomap` en `controllerArgs` se desactiva y se vuelve al Bug puro, para comparar.
 
-1. Abrir `worlds/final_scenario01.wbt` en Webots.
-2. Compilar `controllers/fool_controller/` desde Webots o ejecutar `make` en esa carpeta con `WEBOTS_HOME` configurado.
-3. Iniciar la simulación.
-4. Comprobar en la consola los mensajes `[STARTUP]`, `[CAMERAS]`, `[START]` y `[SENSORS]`.
-5. Confirmar que **el robot permanece detenido**: en esta fase solamente se diagnostican los sensores.
+Los archivos nuevos son solo cabeceras: **no hay que tocar el Makefile**. Conviene hacer *Clean* y recompilar.
 
-### Prueba independiente de calibración
+### Cámara y luz
 
-Desde la raíz del proyecto:
+Los escenarios tienen iluminación muy distinta (02 y 03 casi a oscuras, 04–07 con poca luz y niebla, 09 con niebla). El segmentador ahora aprende en cada imagen el color del suelo (franja inferior) y clasifica cada píxel relativo a él. Si el suelo se ve demasiado oscuro, la cámara se desactiva y se navega solo con infrarrojos. Más allá de 3,5 m (niebla) no se da nada por libre. La columna `cam_valid_pct` dice en qué % de la prueba la cámara se pudo usar, y la consola muestra `luz=` (brillo del suelo, 0–255).
 
-```bash
-g++ -std=c++11 -Wall -Wextra -pedantic \
-    tests/sensor_calibration_test.cpp \
-    controllers/fool_controller/sensors/DistanceSensorCalibration.cpp \
-    -o /tmp/sensor_calibration_test
-/tmp/sensor_calibration_test
-```
+### Cómo hacer la prueba
 
-> **Validación pendiente:** compilar y ejecutar el controlador completo dentro de Webots para verificar el comportamiento de los dispositivos en los escenarios de evaluación.
+En el árbol de escena: `Pioneer2` → campo `controllerArgs`. Añadir un argumento por línea:
 
-### Ejecutar el controlador aislado de EXP-002
+| Prueba | controllerArgs |
+|---|---|
+| Con cámara | `navigate`, `tag=s01` |
+| Sin cámara | `navigate`, `nocam`, `tag=s01` |
+| Sin mapa (Bug puro) | `navigate`, `nomap` |
 
-El mundo único `worlds/experiment_test_scenario01.wbt` es una copia reproducible de escenario 01 y selecciona `experiment_test_controller`, no `fool_controller`. Se regenera con los parámetros de cada corrida y se reutiliza para los experimentos. Compilar una sola vez el harness con `make -C controllers/experiment_test_controller`; las salidas se guardan en el directorio `results/` del experimento activo. El flujo está en el [protocolo](docs/experiments.md) y el [README de EXP-002](experiments/exp_002_visual_ranging/README.md).
+`tag` es opcional: si no se pone, el controlador detecta el mundo (`s01`…`s10`) leyendo la línea de órdenes de Webots; si no lo consigue escribe `s??`. Úsalo para distinguir salidas distintas (`s01-a`). Para probar otras salidas, arrastra el robot a otra posición detrás de la línea amarilla y gíralo antes de pulsar Play.
+
+Al terminar aparece en consola una línea `[RESULT]` y se añade una fila a `results/outbound_results.csv` (en la raíz del proyecto, junto a `worlds/`; la primera columna es la fecha y hora):
+
+| Columna | Significado |
+|---|---|
+| success / time_s | si cruzó la línea final y en cuánto tiempo simulado |
+| max_z / lines | avance máximo y líneas cruzadas (de 8) |
+| path_m | distancia recorrida |
+| obstacles / side_switches | obstáculos rodeados y medias vueltas |
+| stuck_recoveries | atascos detectados |
+| emergency_stops / near_contacts / min_ir_m | frenos de emergencia, lecturas IR < 3 cm (posible roce) y distancia mínima vista |
+| map / cam_valid_pct / replans | si se usó el mapa, % del tiempo con la cámara utilizable y número de replanificaciones |
+
+Las colisiones reales hay que mirarlas en la simulación: el controlador solo ve lo que miden los infrarrojos.
+
+Todos los umbrales y velocidades están en `config/RobotConfig.h`, sección `nav`.

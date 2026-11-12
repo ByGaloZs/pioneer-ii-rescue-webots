@@ -1,4 +1,0 @@
-run_id,logged_trial_id,pose_label,gps_x_m,gps_z_m,heading_rad,notes
-run_20261111_201357,geom01_tilt30_right_r02,right,-1.999998,-3.032324,-0.785398,Reloaded right-wall pose; logged GPS agrees with regenerated WBT pose
-run_20261111_203525,geom01_tilt30_right_r02,right,-1.999998,-3.032324,-0.785398,Repeat of right-wall pose; frame_000001 JPEG matches run_20261111_201357 byte-for-byte
-run_20261111_203724,geom01_tilt30_right_r02,front,-1.300000,4.000000,1.570800,Corrected offline pose label to geom01_tilt30_front_r01; raw logger trial_id is preserved

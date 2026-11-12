@@ -1,175 +1,76 @@
 #ifndef RESCUE_SENSOR_SNAPSHOT_H_
 #define RESCUE_SENSOR_SNAPSHOT_H_
 
-#include <algorithm>
 #include <array>
 #include <initializer_list>
 #include <limits>
 
 #include "../config/RobotConfig.h"
 
-struct DistanceSensorSectors {
-  DistanceSensorSectors()
-      : valid(false),
-        frontLeft(0.0),
-        frontRight(0.0),
-        front(0.0),
-        diagonalLeft(0.0),
-        diagonalRight(0.0),
-        leftWall(0.0),
-        rightWall(0.0),
-        rearLeft(0.0),
-        rearRight(0.0) {}
-
-  bool valid;
-  // Sector values are maxima of raw Webots responses, not distances in metres.
-  double frontLeft;
-  double frontRight;
-  double front;
-  double diagonalLeft;
-  double diagonalRight;
-  double leftWall;
-  double rightWall;
-  double rearLeft;
-  double rearRight;
+// Distancia mínima (m) de un grupo de sensores. Infinito = nada detectado.
+struct SectorReading {
+  double distanceM = std::numeric_limits<double>::infinity();
+  bool detected() const { return distanceM < std::numeric_limits<double>::infinity(); }
 };
 
-struct DistanceSectorReading {
-  DistanceSectorReading()
-      : distanceM(std::numeric_limits<double>::infinity()),
-        nearSaturated(false),
-        nearSaturationLimitM(0.0) {}
-
-  // Positive infinity means no sensor in this sector returned an obstacle.
-  double distanceM;
-  bool nearSaturated;
-  double nearSaturationLimitM;
+// Sectores alrededor del robot. Disposición del Pioneer2:
+// lado izquierdo de delante a atrás ds0..ds7, lado derecho ds15..ds8.
+//   ds0/ds15 ±10°, ds1/ds14 ±30°, ds2/ds13 ±50°, ds3/ds12 y ds4/ds11 laterales,
+//   ds5..ds7 / ds8..ds10 traseros.
+struct DistanceSectors {
+  SectorReading front;         // ds0, ds1, ds14, ds15
+  SectorReading frontLeft;     // ds0, ds1
+  SectorReading frontRight;    // ds14, ds15
+  SectorReading diagonalLeft;  // ds1, ds2
+  SectorReading diagonalRight; // ds13, ds14
+  SectorReading left;          // ds2, ds3, ds4
+  SectorReading right;         // ds11, ds12, ds13
+  SectorReading rearLeft;      // ds5, ds6, ds7
+  SectorReading rearRight;     // ds8, ds9, ds10
 };
 
-struct DistanceMetersSectors {
-  DistanceSectorReading frontLeft;
-  DistanceSectorReading frontRight;
-  DistanceSectorReading front;
-  DistanceSectorReading diagonalLeft;
-  DistanceSectorReading diagonalRight;
-  DistanceSectorReading leftWall;
-  DistanceSectorReading rightWall;
-  DistanceSectorReading rearLeft;
-  DistanceSectorReading rearRight;
-};
-
+// Lectura de todos los sensores en un mismo paso de simulación.
 struct SensorSnapshot {
-  SensorSnapshot()
-      : gpsXM(0.0),
-        gpsZM(0.0),
-        compassHeadingRad(0.0),
-        leftEncoderRad(0.0),
-        rightEncoderRad(0.0),
-        gpsValid(false),
-        compassValid(false),
-        encodersValid(false),
-        distanceSensorsValid(false),
-        distanceSensorValues(),
-        distanceMeters(),
-        distanceDetected(),
-        distanceNearSaturated(),
-        distanceSectors(),
-        distanceMetersSectors() {}
+  double timeS = 0.0;
 
-  double gpsXM;
-  double gpsZM;
-  double compassHeadingRad;
-  double leftEncoderRad;
-  double rightEncoderRad;
-  bool gpsValid;
-  bool compassValid;
-  bool encodersValid;
-  bool distanceSensorsValid;
-  // Raw Webots DistanceSensor response values; conversion to metres requires
-  // applying the individual sensor lookup tables and calibration.
-  std::array<double, robot_config::kDistanceSensorCount> distanceSensorValues;
-  // Inverse-lookup estimates. Undetected sensors hold their maximum range;
-  // check distanceDetected before treating that value as an obstacle.
-  std::array<double, robot_config::kDistanceSensorCount> distanceMeters;
-  std::array<bool, robot_config::kDistanceSensorCount> distanceDetected;
-  // True when the response is saturated on the near end (distance <= 0.2 m).
-  std::array<bool, robot_config::kDistanceSensorCount> distanceNearSaturated;
-  DistanceSensorSectors distanceSectors;
-  DistanceMetersSectors distanceMetersSectors;
+  bool gpsValid = false;
+  double gpsXM = 0.0;
+  double gpsZM = 0.0;
 
-  void calculateDistanceSensorSectors() {
-    if (!distanceSensorsValid)
-      return;
+  bool compassValid = false;
+  double compassYawRad = 0.0;  // convenio en RobotConfig.h
 
-    // Sector assignment from practica03/obstacle_avoidance: ds0..ds7 run
-    // along the left side from front to rear; ds15..ds8 run along the right.
-    const double frontLeftValue =
-        std::max(distanceSensorValues[0], distanceSensorValues[1]);
-    const double frontRightValue =
-        std::max(distanceSensorValues[15], distanceSensorValues[14]);
+  bool encodersValid = false;
+  double leftEncoderRad = 0.0;
+  double rightEncoderRad = 0.0;
 
-    distanceSectors.frontLeft = frontLeftValue;
-    distanceSectors.frontRight = frontRightValue;
-    distanceSectors.front = std::max(frontLeftValue, frontRightValue);
-    distanceSectors.diagonalLeft =
-        std::max(distanceSensorValues[1], distanceSensorValues[2]);
-    distanceSectors.diagonalRight =
-        std::max(distanceSensorValues[14], distanceSensorValues[13]);
-    distanceSectors.leftWall =
-        std::max(distanceSensorValues[2],
-                 std::max(distanceSensorValues[3], distanceSensorValues[4]));
-    distanceSectors.rightWall =
-        std::max(distanceSensorValues[13],
-                 std::max(distanceSensorValues[12], distanceSensorValues[11]));
-    distanceSectors.rearLeft =
-        std::max(distanceSensorValues[5],
-                 std::max(distanceSensorValues[6], distanceSensorValues[7]));
-    distanceSectors.rearRight =
-        std::max(distanceSensorValues[10],
-                 std::max(distanceSensorValues[9], distanceSensorValues[8]));
-    distanceSectors.valid = true;
+  bool distanceSensorsValid = false;
+  // Respuesta de Webots ya filtrada con mediana móvil.
+  std::array<double, robot_config::kDistanceSensorCount> distanceResponse{};
+  // Distancia estimada (m) para obstáculos cian.
+  std::array<double, robot_config::kDistanceSensorCount> distanceM{};
+  std::array<bool, robot_config::kDistanceSensorCount> distanceDetected{};
+  std::array<bool, robot_config::kDistanceSensorCount> distanceSaturated{};
+  DistanceSectors sectors;
+
+  SectorReading nearest(std::initializer_list<int> indices) const {
+    SectorReading reading;
+    for (int index : indices)
+      if (distanceDetected[index] && distanceM[index] < reading.distanceM)
+        reading.distanceM = distanceM[index];
+    return reading;
   }
 
-  DistanceSectorReading nearestDetectedDistance(
-      std::initializer_list<int> sensorIndices) const {
-    DistanceSectorReading nearest;
-    for (std::initializer_list<int>::const_iterator it = sensorIndices.begin();
-         it != sensorIndices.end(); ++it) {
-      const int index = *it;
-      if (!distanceDetected[index])
-        continue;
-
-      if (distanceMeters[index] < nearest.distanceM) {
-        nearest.distanceM = distanceMeters[index];
-        nearest.nearSaturated = distanceNearSaturated[index];
-        nearest.nearSaturationLimitM = distanceNearSaturated[index]
-                                           ? robot_config::distanceSensorNearSaturationM(index)
-                                           : 0.0;
-      } else if (distanceMeters[index] == nearest.distanceM) {
-        nearest.nearSaturated =
-            nearest.nearSaturated || distanceNearSaturated[index];
-        if (distanceNearSaturated[index])
-          nearest.nearSaturationLimitM =
-              robot_config::distanceSensorNearSaturationM(index);
-      }
-    }
-    return nearest;
-  }
-
-  void calculateDistanceMetersSectors() {
-    if (!distanceSensorsValid)
-      return;
-
-    // Distances use the nearest return in each sector (minimum metres).
-    distanceMetersSectors.frontLeft = nearestDetectedDistance({0, 1});
-    distanceMetersSectors.frontRight = nearestDetectedDistance({15, 14});
-    distanceMetersSectors.front = nearestDetectedDistance({0, 1, 15, 14});
-    distanceMetersSectors.diagonalLeft = nearestDetectedDistance({1, 2});
-    distanceMetersSectors.diagonalRight = nearestDetectedDistance({14, 13});
-    distanceMetersSectors.leftWall = nearestDetectedDistance({2, 3, 4});
-    distanceMetersSectors.rightWall = nearestDetectedDistance({13, 12, 11});
-    distanceMetersSectors.rearLeft = nearestDetectedDistance({5, 6, 7});
-    distanceMetersSectors.rearRight = nearestDetectedDistance({10, 9, 8});
+  void computeSectors() {
+    sectors.front = nearest({0, 1, 14, 15});
+    sectors.frontLeft = nearest({0, 1});
+    sectors.frontRight = nearest({14, 15});
+    sectors.diagonalLeft = nearest({1, 2});
+    sectors.diagonalRight = nearest({13, 14});
+    sectors.left = nearest({2, 3, 4});
+    sectors.right = nearest({11, 12, 13});
+    sectors.rearLeft = nearest({5, 6, 7});
+    sectors.rearRight = nearest({8, 9, 10});
   }
 };
 
