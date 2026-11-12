@@ -53,7 +53,7 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 - Every experiment must have its own `experiments/exp_NNN_short_name/README.md`, even if it is only planned. Document reasons if the chosen scenario matrix changes.
 - For outbound navigation and the complete mission, schedule 10 scenarios × 3 verified starting poses, and record results per run. The source WBT robot pose is not the competition start pose.
 - Keep the canonical GPS setting at `resolution -1` in all `worlds/final_scenario*.wbt`; do not modify other canonical fields when producing test variants. Put additional pose/sensor variants in the single shared test-world copy and record parameters.
-- Consult each experiment README for its actual state; EXP-001 has accepted initial sensor checks, EXP-002 is in progress, and the remaining experiments are planned unless their records say otherwise. Never fabricate results.
+- Consult each experiment README for its actual state; EXP-001 has accepted initial sensor checks, EXP-002 is partially closed for simulator-geometry range consistency in scenario 01 only, and EXP-003–010 remain planned unless their records say otherwise. Never fabricate results.
 
 ## Original scenario provenance and compatibility
 - The canonical `worlds/final_scenario01.wbt` through `final_scenario10.wbt` files derive from the user's original `Práctica06_src.zip` archive. Their only authorized source-world change is GPS `resolution -1`; original and current hashes are listed in `worlds/README.md`.
@@ -62,25 +62,28 @@ This is a C++ Webots project for autonomous rescue using Pioneer II. Read `READM
 
 ## EXP-002 self-occlusion pilot
 - `camera_s` includes visible robot body. Never classify its occluded pixels as free floor or convert them to range measurements.
-- `experiments/exp_002_visual_ranging/config/self_occlusion_pilot.json` is an **unverified example** until inspected against real spherical frames. Keep excluded pixels unknown.
+- `experiments/exp_002_visual_ranging/config/archive/self_occlusion_downward_unverified.json` is a **legacy, unverified mask** for the downward-facing camera. Never use it for the selected −30° setup; keep excluded pixels unknown.
+- `experiments/exp_002_visual_ranging/config/self_occlusion_tilt30.json` is the image-space chassis mask reviewed on four wall captures and one corridor capture. Its `verified=true` applies only to excluding the white body/yellow robot feature; it is not metric validation or proof of free space.
 - Generate/update the shared test world using `experiments/exp_002_visual_ranging/src/create_pilot_world.py`, never overwrite the ten canonical `.wbt` files. The shared world selects `experiment_test_controller` and carries an explicit experiment/trial label.
-- A usable image-space boundary does not imply near-field safety or metric range. Calibration, image registration and metrics are still pending.
+- A visible floor-contact boundary may yield a simulator-range candidate even if nearer pixels are masked; masked pixels remain unknown and never free. EXP-002's scenario-01 comparisons are simulator-geometry consistency checks, not physical calibration or a basis for cross-world claims.
 
-## EXP-002 camera orientation variants
+## EXP-002 camera orientation
 - `worlds/experiment_test_scenario01.wbt` is the single reusable test copy generated from scenario 01, not a replacement for original final scenarios. Its pose and camera settings are changed reproducibly for the active run.
+- EXP-002 has selected `camera_s` tilt −30° (`rotation 1 0 0 -0.5236`) for the active calibration phase. Do not restart the 45°/horizontal comparison unless the experiment is explicitly reopened.
 - The shared test world uses GPS resolution `-1`; verify its configured pose and camera orientation in each trial. Do not infer physical bearing without verifying camera extrinsics.
 - Keep an orientation-specific chassis mask if a mask is needed; do not transfer the old downward-facing mask unchanged.
 - Generate/check the shared world with `experiments/exp_002_visual_ranging/src/create_pilot_world.py`; preserve canonical worlds and captured evidence. Build with `make -C controllers/experiment_test_controller`, never by adding experiment loggers to `fool_controller`.
 
 ## EXP-002 calibration capture fixture
-- Calibration poses P1/P2/P3 are sequential configurations of the one shared test WBT, regenerated with distinct trial labels; do not keep separate WBT copies for each pose.
+- Calibration poses P1/P2/P3 are sequential configurations of the one shared test WBT, repeated three times each with distinct labels `calib01_tilt30_pN_rNN`; do not keep separate WBT copies for poses or repetitions.
+- Rebuild the EXP-002 `results/run_index.csv` from saved GPS/heading metadata with `src/build_run_index.py`; use GPS pose to correct legacy labels and exclude non-wall headings without editing raw logger CSVs.
 - Do not expose wall geometry or target distances to the runtime controller. The label is recording metadata, not a measurement or world-identification mechanism.
-- Only `calib01_*` trials start capture after 1 simulated second and finalize on the first saved frame. Other EXP-002 trials remain periodic.
+- `calib01_*` trials capture once after 1 simulated second; `geom01_*` trials capture at startup and again after 1 second, then finalize. Other EXP-002 trials remain periodic.
 - The visual camera markers are removed only in the generated test copy when calibration is selected; no canonical WBT is changed.
-- Distances in the README refer to robot-center horizontal reference, not the camera optical ray. Do not claim metric ranging or a passing Webots run without observations.
+- Distances in the README identify whether they are camera-origin or robot-center references. Report EXP-002 simulator comparisons only for the recorded scenario-01 poses; physical metric accuracy, absolute azimuth calibration and generalization remain unvalidated.
 
 ## EXP-002 V3 geometry guardrails
 - Use `spherical_geometry.py` and `angular_observations.py` for future spherical-camera analysis. The radial functions in `camera_projection.py` are legacy image-space only and MUST NOT drive metric mapping.
 - The FOV configured in the current WBT is ~180° horizontally, not 360°. Verify azimuth sign with an off-axis marker before navigation.
-- Ground-ray distance is only a candidate for a floor/obstacle contact in clear view and with verified orientation-specific chassis mask. Unknown is not free.
-- P1/P2/P3 have no established visible ground-contact boundary or measured MAE. Do not assert numeric ranging accuracy until independent reference and out-of-sample validation exist.
+- Ground-ray distance is a candidate only for a contiguous visible floor-contact transition with the verified orientation-specific chassis mask. Masked pixels and hidden near field remain unknown, never free.
+- P1/P2/P3 and geometry pilots provide simulator checks only. Do not claim physical metric accuracy, absolute azimuth calibration or cross-world generalization without independent references and out-of-sample validation.

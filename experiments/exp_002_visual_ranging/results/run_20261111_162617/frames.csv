@@ -1,0 +1,7 @@
+frame_index,simulation_time_s,gps_valid,gps_x_m,gps_z_m,compass_valid,heading_rad,image_available,image_saved,image_file,image_width_px,image_height_px,camera_fov_rad,trial_id
+0,0.032000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000000.jpg,160,160,3.141500,unlabeled
+1,1.056000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000001.jpg,160,160,3.141500,unlabeled
+2,2.080000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000002.jpg,160,160,3.141500,unlabeled
+3,3.104000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000003.jpg,160,160,3.141500,unlabeled
+4,4.128000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000004.jpg,160,160,3.141500,unlabeled
+5,5.152000,1,0.000000,-8.800000,1,0.000000,1,1,frame_000005.jpg,160,160,3.141500,unlabeled

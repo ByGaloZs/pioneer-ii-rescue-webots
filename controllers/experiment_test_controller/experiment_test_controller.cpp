@@ -39,6 +39,7 @@ int main(int argc, const char *argv[]) {
   }
 
   const bool calibrationTrial = trialId.compare(0, 8, "calib01_") == 0;
+  const bool geometryTrial = trialId.compare(0, 7, "geom01_") == 0;
   webots::Robot robot;
   const int timeStep = static_cast<int>(robot.getBasicTimeStep());
   if (timeStep <= 0) {
@@ -74,10 +75,12 @@ int main(int argc, const char *argv[]) {
             << visualLogger.runDirectory() << std::endl;
 
   bool startPoseCaptured = false;
+  unsigned int geometryCaptureCount = 0;
   double nextReportS = 0.0;
   double nextCaptureS = calibrationTrial ? 1.0 : 0.0;
   while (robot.step(timeStep) != -1) {
     const SensorSnapshot snapshot = sensors.read();
+    bool geometryTrialComplete = false;
     if (!startPoseCaptured && snapshot.gpsValid && snapshot.compassValid) {
       startPoseCaptured = true;
       std::cout << std::fixed << std::setprecision(3)
@@ -96,8 +99,16 @@ int main(int argc, const char *argv[]) {
         visualLogger.finish(timeS);
         std::cout << "[EXP002_DONE] trial=" << trialId
                   << " image saved and files finalized." << std::endl;
+      } else if (geometryTrial && saved && ++geometryCaptureCount >= 2) {
+        visualLogger.finish(timeS);
+        geometryTrialComplete = true;
+        std::cout << "[EXP002_DONE] trial=" << trialId
+                  << " initial and settled pose captures finalized." << std::endl;
       }
     }
+
+    if (geometryTrialComplete)
+      break;
 
     if (timeS < nextReportS)
       continue;

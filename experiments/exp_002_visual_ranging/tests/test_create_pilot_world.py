@@ -45,11 +45,14 @@ class SharedTestWorldTest(unittest.TestCase):
         self.assertEqual(self.original.splitlines()[0], actual.splitlines()[0])
         self.assertIn("translation 0 0 -9.05", self.original)
 
+    def test_generator_adds_pose_rotation_when_source_uses_default_orientation(self) -> None:
+        source = self.original.replace("  rotation 0 1 0 3.141592653589793\n", "")
+        actual = make_pilot_world(source, yaw=-0.785398, trial_id="geom01_tilt30_right_r01")
+        self.assertIn("translation 0 0 -8.8\n  rotation 0 1 0 -0.785398", actual)
+
     def test_invalid_source_pose_and_trial_fail_closed(self) -> None:
         with self.assertRaises(ValueError):
             make_pilot_world(self.original.replace("Pioneer2 {", "Robot {"), trial_id="p1")
-        with self.assertRaises(ValueError):
-            make_pilot_world(self.original.replace("resolution 3", ""), trial_id="p1")
         with self.assertRaises(ValueError):
             make_pilot_world(self.original, z=float("nan"), trial_id="p1")
         with self.assertRaises(ValueError):
@@ -63,18 +66,24 @@ class SharedTestWorldTest(unittest.TestCase):
                 trial_id="p1",
             )
 
+    def test_generator_adds_unquantized_gps_resolution_if_missing(self) -> None:
+        source = self.original.replace("      resolution 3\n", "")
+        actual = make_pilot_world(source, trial_id="geom01_tilt30_right_r01")
+        self.assertIn("resolution -1", actual)
+
     def test_generator_writes_one_reproducible_copy_and_protects_source(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             source = root / "final_scenario01.wbt"
             output = root / "experiment_test_scenario01.wbt"
             source.write_text(self.original, encoding="utf-8")
-            generated = generate_test_world(source, output, trial_id="camera_tilt45")
+            generated = generate_test_world(source, output, trial_id="calib01_tilt30_p1")
             self.assertEqual(generated, output)
             content = output.read_text(encoding="utf-8")
-            self.assertIn('controllerArgs "experiment=002;trial=camera_tilt45"', content)
+            self.assertIn("rotation 1 0 0 -0.5236", content)
+            self.assertIn('controllerArgs "experiment=002;trial=calib01_tilt30_p1"', content)
             self.assertEqual(
-                generate_test_world(source, output, trial_id="camera_tilt45"), output
+                generate_test_world(source, output, trial_id="calib01_tilt30_p1"), output
             )
             with self.assertRaises(FileExistsError):
                 generate_test_world(source, output, trial_id="camera_tilt30")

@@ -1,0 +1,23 @@
+{
+  "reference_file": "experiments/exp_002_visual_ranging/results/geometry_reference_scenario01_right_reloaded.csv",
+  "camera_tilt_rad": -0.5236,
+  "camera_yaw_rad": 0.0,
+  "measurements_total": 1,
+  "bearing": {
+    "count": 0,
+    "bias": null,
+    "mae": null,
+    "rmse": null
+  },
+  "bearing_reference_left_count": 0,
+  "bearing_reference_right_count": 0,
+  "range": {
+    "count": 1,
+    "bias": 0.019757762999999873,
+    "mae": 0.019757762999999873,
+    "rmse": 0.019757762999999873
+  },
+  "range_excluded": {},
+  "range_candidates_with_unknown_near_field": 1,
+  "interpretation": "A visible floor-contact transition is compared even when nearer pixels are masked; those nearer pixels remain unknown, not free. No acceptance threshold is assumed."
+}
