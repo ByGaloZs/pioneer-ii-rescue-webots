@@ -10,7 +10,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation 1 0 0 4.71238898038469
-  position -5.745273589042384e-15 48.314490267028994 -1.1770774318500895e-17
+  position -5.745273589042384e-15 54.475307468925905 -1.1434945342837505e-15
 }
 Background {
   skyColor [
@@ -1129,7 +1129,6 @@ Pioneer2 {
     Compass {
     }
     GPS {
-      resolution -1
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05

@@ -1,2 +1,0 @@
-measurement_type,run_id,frame_file,sector_id,status,observed_value,reference_value,signed_error,absolute_error,near_field_occluded,reference_method,notes
-range,run_20261111_201357,frame_000001.jpg,9,measured,1.3652,1.345442237,0.019757762999999873,0.019757762999999873,True,Offline ray-plane intersection with solid2 face using logged GPS and robot yaw,Simulator geometry comparison conditional on V3 sector bearing

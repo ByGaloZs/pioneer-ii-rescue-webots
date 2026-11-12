@@ -198,13 +198,13 @@ PROTO Pioneer2_Robot [
         ]
         name "ds0"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.077 0.209 -0.147
@@ -214,12 +214,12 @@ PROTO Pioneer2_Robot [
         ]
         name "ds1"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0]
-        type "laser"
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0]
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.118 0.209 -0.116
@@ -229,12 +229,12 @@ PROTO Pioneer2_Robot [
         ]
         name "ds2"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0           ]
-        type "laser"
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0           ]
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.136 0.209 -0.071
@@ -249,7 +249,7 @@ PROTO Pioneer2_Robot [
         0.7 400 0.1
         0.9 100 0.1
         1 0 0          ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.136 0.209 0.16
@@ -261,7 +261,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.118 0.209 0.205
@@ -273,7 +273,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.077 0.209 0.236
@@ -285,7 +285,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation -0.027 0.209 0.253
@@ -297,7 +297,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.027 0.209 0.253
@@ -309,7 +309,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.077 0.209 0.236
@@ -321,7 +321,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.118 0.209 0.205
@@ -333,7 +333,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.136 0.209 0.16
@@ -344,7 +344,7 @@ PROTO Pioneer2_Robot [
         lookupTable [
           0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.136 0.209 -0.071
@@ -358,7 +358,7 @@ PROTO Pioneer2_Robot [
         0.7 400 0.1
         0.9 100 0.1
         1 0 0        ]
-        type "laser"
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.118 0.209 -0.116
@@ -368,12 +368,12 @@ PROTO Pioneer2_Robot [
         ]
         name "ds13"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0        ]
-        type "laser"
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0        ]
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.077 0.209 -0.147
@@ -383,12 +383,12 @@ PROTO Pioneer2_Robot [
         ]
         name "ds14"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0        ]
-        type "laser"
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0        ]
+        type "infra-red"
       }
       DistanceSensor {
         translation 0.027 0.209 -0.164
@@ -398,12 +398,12 @@ PROTO Pioneer2_Robot [
         ]
         name "ds15"
         lookupTable [
-        0 1020 0
-        0.08 1020 0.1
-        0.25 400 0.1
-        0.35 100 0.1
-        0.4 0 0        ]
-        type "laser"
+        0 1024 0
+        0.2 1024 0.1
+        0.7 400 0.1
+        0.9 100 0.1
+        1 0 0        ]
+        type "infra-red"
       }
     ]
     description "designed by Activmedia Robotics"

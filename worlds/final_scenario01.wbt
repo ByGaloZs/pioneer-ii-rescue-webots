@@ -10,7 +10,7 @@ WorldInfo {
 }
 Viewpoint {
   orientation 1 0 0 4.71238898038469
-  position 4.818134299389092e-15 52.364694213739625 -4.337263226880829e-15
+  position 4.818134299389092e-15 58.971150719764594 -5.550849598952283e-15
 }
 Background {
   skyColor [
@@ -1037,14 +1037,13 @@ DEF FLOOR Solid {
   locked TRUE
 }
 Pioneer2 {
-  translation 0 0 -9.05
+  translation 3 0 -9
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
   extensionSlot [
     Compass {
     }
     GPS {
-      resolution -1
     }
     DEF SPHERICAL_CAMERA Camera {
       translation 0.025 0.44 -0.05
