@@ -16,7 +16,7 @@
 // el mapa de ocupación final en results/map_<tag>_<cam|nocam>.txt.
 class OutboundRun {
 public:
-  OutboundRun(bool useCamera, bool useMap, const std::string &tag);
+  OutboundRun(bool useCamera, bool useMap, bool liveMap, const std::string &tag);
 
   WheelCommand step(const SensorSnapshot &snapshot, const Localizer &localizer,
                     const FreeSpaceProfile *camera, double dtS);
@@ -28,6 +28,8 @@ private:
 
   bool _useCamera;
   bool _useMap;
+  bool _liveMap;
+  double _nextLiveS = 0.0;
   OccupancyGrid _grid;
   int _cameraFrames = 0;
   int _cameraValidFrames = 0;

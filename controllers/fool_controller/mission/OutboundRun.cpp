@@ -18,8 +18,8 @@ namespace {
 constexpr double kNearContactM = 0.03;  // IR casi en contacto: posible roce
 }
 
-OutboundRun::OutboundRun(bool useCamera, bool useMap, const std::string &tag)
-    : _useCamera(useCamera), _useMap(useMap), _tag(tag) {}
+OutboundRun::OutboundRun(bool useCamera, bool useMap, bool liveMap, const std::string &tag)
+    : _useCamera(useCamera), _useMap(useMap), _liveMap(liveMap && useMap), _tag(tag) {}
 
 WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &localizer,
                                const FreeSpaceProfile *camera, double dtS) {
@@ -69,6 +69,12 @@ WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &
   }
   const WheelCommand command =
       _navigator.step(snapshot, pose, _useCamera ? camera : nullptr, dtS);
+  if (_liveMap && snapshot.timeS >= _nextLiveS) {
+    _nextLiveS = snapshot.timeS + robot_config::kLiveMapPeriodS;
+    _grid.writeLive(run_output::path("live_map.txt"), snapshot.timeS - _startTimeS,
+                    _navigator.stateName(), pose, nav::kOutboundGoalZ,
+                    _navigator.planner().path());
+  }
   return _safety.filter(snapshot, command);
 }
 
@@ -143,6 +149,10 @@ void OutboundRun::finish(const SensorSnapshot &snapshot, const Localizer &locali
   if (!exists) csv << header << '\n';
   csv << row.str() << '\n';
   std::cout << "[RESULT] Fila añadida a results/outbound_results.csv" << std::endl;
+  if (_liveMap)
+    _grid.writeLive(run_output::path("live_map.txt"), elapsed,
+                    success ? "FIN_OK" : "FIN_TIEMPO", localizer.pose(), nav::kOutboundGoalZ,
+                    _navigator.planner().path());
   if (_useMap) {
     const std::string mapFile = "map_" + run_output::resolveTag(_tag) + "_" +
                                 (_useCamera ? "cam" : "nocam") + ".txt";
