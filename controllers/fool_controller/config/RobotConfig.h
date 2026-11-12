@@ -160,6 +160,10 @@ constexpr StartupMode kStartupMode = StartupMode::kNavigate;
 constexpr bool kUseCameraByDefault = true;
 // Mapa + A*. Con "nomap" en controllerArgs se vuelve al Bug puro (para comparar).
 constexpr bool kUseMapByDefault = true;
+// Vuelca el mapa a results/live_map.txt (cada kLiveMapPeriodS de simulación)
+// para verlo en directo con tools/live_map.py. "nolive" en controllerArgs lo apaga.
+constexpr bool kLiveMapByDefault = true;
+constexpr double kLiveMapPeriodS = 0.5;
 
 }  // namespace robot_config
 

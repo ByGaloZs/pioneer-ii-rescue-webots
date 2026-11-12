@@ -3,7 +3,8 @@
 // Modos (RobotConfig.h::kStartupMode o controllerArgs del robot en el .wbt):
 //   navigate   paso 2: ir hasta la línea amarilla del fondo y medir el resultado.
 //              Añadir "nocam" para navegar solo con infrarrojos, "nomap" para
-//              desactivar el mapa + A* (Bug puro) y "tag=XX" para etiquetar a mano
+//              desactivar el mapa + A* (Bug puro), "nolive" para no volcar el mapa
+//              en directo (results/live_map.txt, ver tools/live_map.py) y "tag=XX" para etiquetar a mano
 //              (opcional: si no se pone, se detecta el mundo).
 //   calibrate  paso 1: rutina que mide GPS, brújula, encoders e IR.
 //   monitor    robot parado; imprime cada segundo pose y sectores de distancia.
@@ -32,6 +33,7 @@ struct Options {
   robot_config::StartupMode mode = robot_config::kStartupMode;
   bool useCamera = robot_config::kUseCameraByDefault;
   bool useMap = robot_config::kUseMapByDefault;
+  bool liveMap = robot_config::kLiveMapByDefault;
   std::string tag;
 };
 
@@ -46,6 +48,8 @@ Options parseOptions(int argc, char **argv) {
     else if (arg == "cam") options.useCamera = true;
     else if (arg == "nomap") options.useMap = false;
     else if (arg == "map") options.useMap = true;
+    else if (arg == "nolive") options.liveMap = false;
+    else if (arg == "live") options.liveMap = true;
     else if (arg.rfind("tag=", 0) == 0) options.tag = arg.substr(4);
   }
   return options;
@@ -117,7 +121,7 @@ int main(int argc, char **argv) {
 
   Localizer localizer;
   SensorCalibration calibration;
-  OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.tag);
+  OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, options.tag);
   double nextStatusS = 0.0;
 
   while (robot.step(timeStep) != -1) {

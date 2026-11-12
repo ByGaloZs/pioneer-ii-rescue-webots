@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <fstream>
 #include <string>
 #include <utility>
@@ -114,6 +115,31 @@ public:
         addEvidence(sx + rayX * d, sz + rayZ * d, m::kHitIncrement);
       }
     }
+  }
+
+  // Volcado para el visor en directo (tools/live_map.py). Se escribe en un
+  // archivo temporal y se renombra, así el visor nunca lee un archivo a medias.
+  // Formato: líneas "clave=valor", luego "grid" y las filas de arriba (+z) a abajo.
+  void writeLive(const std::string &path, double timeS, const std::string &state,
+                 const Pose &pose, double goalZ,
+                 const std::vector<std::pair<double, double>> &plan) const {
+    const std::string tmp = path + ".tmp";
+    {
+      std::ofstream out(tmp);
+      out << "t=" << timeS << "\nstate=" << state << "\npose=" << pose.xM << ' ' << pose.zM
+          << ' ' << pose.yawRad << "\ngoalz=" << goalZ << "\nplan=";
+      for (size_t i = 0; i < plan.size(); i += 4)  // un punto de cada 4 (40 cm)
+        out << plan[i].first << ',' << plan[i].second << ' ';
+      out << "\ngrid\n";
+      for (int cz = kHeight - 1; cz >= 0; --cz) {
+        for (int cx = 0; cx < kWidth; ++cx) {
+          const int i = index(cx, cz);
+          out << (occupied(cx, cz) ? '#' : _visits[i] > 0 ? 'o' : _value[i] < 0 ? '.' : ' ');
+        }
+        out << '\n';
+      }
+    }
+    std::rename(tmp.c_str(), path.c_str());
   }
 
   // Dibujo ASCII para el informe: '#' ocupado, '.' libre visto, 'o' recorrido,
