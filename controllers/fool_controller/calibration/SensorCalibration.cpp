@@ -13,6 +13,7 @@
 namespace {
 
 // Parámetros de la rutina (no son parámetros del robot).
+// Tiempos, velocidades y tolerancias de cada fase.
 constexpr double kStaticDurationS = 2.0;
 constexpr double kSettleDurationS = 0.6;
 constexpr double kDriveSpeed = 3.0;             // rad/s de rueda (~0.25 m/s)
@@ -35,12 +36,14 @@ constexpr double kBackOffDistanceM = 0.30;
 constexpr double kBackOffSpeed = 1.5;
 constexpr double kFrontSensorAngleRad = 10.0 * angles::kPi / 180.0;  // ds0/ds15
 
+// Texto del veredicto: OK, REVISAR o FALLO.
 const char *verdict(bool ok, bool warn) { return ok ? "OK" : (warn ? "REVISAR" : "FALLO"); }
 
 double clamp(double value, double limit) { return std::max(-limit, std::min(limit, value)); }
 
 }  // namespace
 
+// Guarda el tiempo y las lecturas al inicio de la fase.
 void SensorCalibration::enter(Phase phase, const SensorSnapshot &snapshot,
                               const Localizer &localizer) {
   _phase = phase;
@@ -60,6 +63,7 @@ WheelCommand SensorCalibration::holdHeading(double speed, double targetYaw, doub
   return WheelCommand::of(speed - correction, speed + correction);
 }
 
+// Máquina de estados de la calibración; en cada fase mide y decide cuándo pasar a la siguiente.
 WheelCommand SensorCalibration::step(const SensorSnapshot &snapshot, const Localizer &localizer) {
   if (!localizer.initialized()) return WheelCommand::stop();
   if (!_started) {
@@ -236,6 +240,7 @@ WheelCommand SensorCalibration::step(const SensorSnapshot &snapshot, const Local
   return WheelCommand::stop();
 }
 
+// Con la recta terminada: compara GPS contra encoders y deduce el convenio de la brújula.
 void SensorCalibration::finishDrive(const SensorSnapshot &snapshot, const Localizer &localizer) {
   const double dx = snapshot.gpsXM - _startX;
   const double dz = snapshot.gpsZM - _startZ;
@@ -268,6 +273,7 @@ void SensorCalibration::finishSpin(bool left, const SensorSnapshot &snapshot,
   }
 }
 
+// Ajusta la relación entre la respuesta IR y la distancia real durante la aproximación.
 void SensorCalibration::analyseInfrared(std::ostringstream &out) {
   out << "[INFRARROJOS]\n";
   int restCount = 0;
@@ -345,6 +351,7 @@ void SensorCalibration::analyseInfrared(std::ostringstream &out) {
         << " (configurado " << robot_config::kObstacleReflectionFactor << ").\n";
 }
 
+// Arma el informe con todos los resultados y su veredicto.
 void SensorCalibration::writeReport(const SensorSnapshot &snapshot, const Localizer &localizer) {
   std::ostringstream out;
   out << std::fixed;

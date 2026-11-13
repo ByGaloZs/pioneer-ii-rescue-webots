@@ -1,4 +1,4 @@
-# Paso 1: calibración de sensores
+# Calibración de sensores
 
 Rutina automática (`calibration/SensorCalibration`) que mide con los propios sensores los parámetros de `RobotConfig.h` que dependen del robot y del mundo.
 Se ejecutó en `worlds/final_scenario01.wbt` y sus resultados están ya en `RobotConfig.h`. Solo hace falta repetirla si cambia el robot (PROTO),

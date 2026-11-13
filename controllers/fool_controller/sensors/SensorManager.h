@@ -20,8 +20,10 @@ class SensorManager {
 public:
   explicit SensorManager(webots::Robot *robot);
 
+  // Busca y activa todos los dispositivos; regresa false si falta alguno.
   bool initialize(int timeStep);
   void shutdown();
+  // Lee todo en el paso actual y regresa las lecturas ya convertidas.
   SensorSnapshot read();
 
   // Imprime tipo y alcance de cada sensor de distancia según Webots.
@@ -35,6 +37,7 @@ public:
   webots::Camera *sphericalCamera() const { return _sphericalCamera; }
 
 private:
+  // Mediana móvil de las últimas lecturas de un sensor (quita picos de ruido).
   double filteredResponse(int index, double rawResponse);
 
   webots::Robot *_robot;
@@ -44,6 +47,7 @@ private:
   webots::PositionSensor *_leftEncoder;
   webots::PositionSensor *_rightEncoder;
   std::array<webots::DistanceSensor *, robot_config::kDistanceSensorCount> _distanceSensors;
+  // Historial de respuestas por sensor para la mediana.
   std::array<std::deque<double>, robot_config::kDistanceSensorCount> _responseHistory;
   webots::Camera *_frontCamera = nullptr;
   webots::Camera *_sphericalCamera = nullptr;

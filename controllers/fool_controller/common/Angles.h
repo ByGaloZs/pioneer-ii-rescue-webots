@@ -3,17 +3,19 @@
 
 #include <cmath>
 
+// Utilidades de ángulos: constantes y conversiones usadas en todo el controlador.
 namespace angles {
 
 constexpr double kPi = 3.14159265358979323846;
 
-// Normaliza un ángulo a (-pi, pi].
+// Normaliza un ángulo a (-pi, pi] sumando o restando vueltas completas.
 inline double wrap(double angleRad) {
   while (angleRad > kPi) angleRad -= 2.0 * kPi;
   while (angleRad <= -kPi) angleRad += 2.0 * kPi;
   return angleRad;
 }
 
+// Conversiones entre radianes y grados.
 inline double toDeg(double angleRad) { return angleRad * 180.0 / kPi; }
 inline double toRad(double angleDeg) { return angleDeg * kPi / 180.0; }
 

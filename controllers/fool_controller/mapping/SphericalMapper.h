@@ -34,12 +34,15 @@ class SphericalMapper {
 public:
   // image: buffer BGRA de webots::Camera::getImage() (160 x 160).
   // Devuelve false si la imagen no es utilizable (poca luz).
+  // Lanza rayos en 360° sobre el suelo; el suelo libre se marca como libre
+  // y donde empieza lo cian se marca una pared.
   bool update(const unsigned char *image, const Pose &pose, OccupancyGrid &grid) {
     namespace m = robot_config::mapping;
     if (image == nullptr) return false;
     _lastBrightness = floorBrightness(image);
     if (_lastBrightness >= 0 && _lastBrightness < m::kSphereMinBrightness) return false;
 
+    // Vectores unitarios de "delante" e "izquierda" del robot en el mundo.
     const double fx = -std::sin(pose.yawRad), fz = -std::cos(pose.yawRad);  // delante
     const double lx = -std::cos(pose.yawRad), lz = std::sin(pose.yawRad);   // izquierda
     for (double deg = 0.0; deg < 360.0; deg += m::kSphereRayStepDeg) {
@@ -67,7 +70,6 @@ public:
           const double hf = hitR * ca, hl = hitR * sa;
           grid.addCameraHit(pose.xM + fx * hf + lx * hl, pose.zM + fz * hf + lz * hl,
                             hitR <= 1.0 ? m::kSphereHitNear : m::kSphereHitFar);
-          ++_hits;
         }
         break;
       }
@@ -75,8 +77,8 @@ public:
     return true;
   }
 
+  // Brillo del suelo de la última imagen (para diagnóstico).
   int lastFloorBrightness() const { return _lastBrightness; }
-  long hits() const { return _hits; }
 
 private:
   static constexpr double kPi = 3.14159265358979;
@@ -91,6 +93,7 @@ private:
   }
 
   // Punto del suelo (metros desde el centro del robot) -> píxel de la esférica.
+  // Proyecta un punto del suelo al píxel de la cámara; false si cae fuera de la imagen.
   static bool groundToPixel(double forwardM, double leftM, int &u, int &v) {
     const double right = -leftM - SphericalView::kCameraRightM;
     const double fwd = forwardM - SphericalView::kCameraForwardM;
@@ -106,6 +109,7 @@ private:
   }
 
   // Brillo (0-255) mediano del suelo visible cerca del robot; -1 si no se puede medir.
+  // Toma muestras del suelo alrededor del robot y regresa su brillo mediano.
   static int floorBrightness(const unsigned char *image) {
     std::vector<int> values;
     for (double deg = 0.0; deg < 360.0; deg += 20.0)
@@ -124,7 +128,6 @@ private:
   }
 
   int _lastBrightness = -1;
-  long _hits = 0;
 };
 
 #endif  // RESCUE_SPHERICAL_MAPPER_H_

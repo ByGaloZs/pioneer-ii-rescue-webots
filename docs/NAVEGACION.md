@@ -1,4 +1,4 @@
-# Navegación y misión (pasos 2, 3 y 4)
+# Navegación y misión (ida, víctimas y vuelta)
 
 Cómo llega el robot a la línea amarilla del fondo en un recinto que no conoce y, después, cómo rescata a las víctimas y vuelve. Las secciones de la máquina de estados
 y del mapa describen la navegación (ida y vuelta); la sección «Misión completa» explica la secuencia. Para el resumen de módulos ver

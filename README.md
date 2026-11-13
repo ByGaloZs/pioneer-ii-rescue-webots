@@ -1,20 +1,21 @@
 # Rescate con Pioneer II (Webots R2020b, C++)
 
-Controlador `fool_controller` del trabajo final de Robótica (UC3M): un Pioneer II debe cruzar una arena de 10 × 20 m con obstáculos,
+Controlador `fool_controller`: un Pioneer II debe cruzar una arena de 10 × 20 m con obstáculos,
 localizar dos víctimas (cilindros verdes), parar a menos de 1 m de cada una, dar un giro completo de 360° con mensaje en la terminal y
-volver a la salida en menos de 240 s. Se construye por pasos; cada paso deja el robot funcionando.
+volver a la salida en menos de 240 s.
 
 ## Estado
 
-| Paso | Contenido | Estado |
+| Etapa | Contenido | Estado |
 |---|---|---|
-| 1 | Sensores configurados y calibrados (GPS, brújula, encoders, 16 IR) | **Hecho** (escenario 01) |
-| 2 | Ida: mapa + A* (IR + cámara esférica), Bug reactivo, guía con cámara frontal | **Validado en Webots**: 10/10 mundos, 33–100 s (un intento por mundo) |
-| 3 | Vuelta a la salida (A* que prefiere lo ya recorrido) | **En pruebas**: completada en Webots en 2 escenarios (s01, s10) |
-| 4 | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **En pruebas**: 2/2 víctimas en esos 2 escenarios; 10/10 solo en el simulador propio |
-| 5 | Los 10 escenarios completos en Webots, tabla final para el informe | Pendiente |
+| Sensores | Sensores configurados y calibrados (GPS, brújula, encoders, 16 IR) | **Hecho** (escenario 01) |
+| Ida | Ida: mapa + A* (IR + cámara esférica), Bug reactivo, guía con cámara frontal | **Validado en Webots**: 10/10 mundos, 33–100 s (un intento por mundo) |
+| Vuelta | Vuelta a la salida (A* que prefiere lo ya recorrido) | **Validado en Webots**: retorno completado en 10/10 mundos |
+| Víctimas | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **Probado en Webots en los 10 mundos**: 2/2 víctimas en 8; 1/2 en s09 y 0/2 en s03 |
+| Misión | Misión integral en los 10 escenarios | **Probada en Webots**: 10/10 retornos; rescate 2/2 en 8/10 mundos. Revisar s03 y s09 |
 
-Los números y su procedencia (Webots frente a simulador propio) están en [docs/RESULTADOS.md](docs/RESULTADOS.md).
+**Última tanda integral en Webots (10 ejecuciones):** 10/10 robots volvieron antes del límite; se rescataron 17/20 víctimas (2/2 en 8 mundos). Tiempo total medio: **130,7 s**; mínimo: **96,1 s** (s04); máximo: **236,0 s** (s03, con 0 víctimas rescatadas y solo 4 s de margen). En s09 se rescató 1/2. El CSV de esta tanda es `results/mission_results.csv` y no se versiona. Los resultados históricos de la ida están en [docs/RESULTADOS.md](docs/RESULTADOS.md).
+
 Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGURACION.md](docs/CONFIGURACION.md)).
 
 ## Inicio rápido
@@ -37,8 +38,8 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 | Argumento | Efecto |
 |---|---|
 | *(vacío)* o `mission` | **Misión completa** (modo por defecto, `kStartupMode = kMission`) → `results/mission_results.csv` |
-| `navigate` | Solo la ida (paso 2) → `results/outbound_results.csv` |
-| `calibrate` / `monitor` / `capture` | Calibración (paso 1) / robot parado imprimiendo sensores / capturas de las cámaras (**`capture` borra las capturas anteriores** de `results/captures/` al empezar) |
+| `navigate` | Solo la ida → `results/outbound_results.csv` |
+| `calibrate` / `monitor` / `capture` | Calibración / robot parado imprimiendo sensores / capturas de las cámaras (**`capture` borra las capturas anteriores** de `results/captures/` al empezar) |
 | `nocam`, `nomap`, `nosphere` | Sin cámara frontal / sin mapa+A* (Bug puro) / sin cámara esférica (ni en el mapa ni en las observaciones de víctimas del modo `mission`; para comparar) |
 | `nolive`, `snap` | Sin volcado del mapa en directo / capturas de cámaras mientras navega |
 | `tag=XX` | Etiqueta de la prueba; si falta se detecta el mundo (`s01`…`s10`) o sale `s??` |
@@ -50,7 +51,7 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Qué hace cada módulo, qué recibe y entrega, dónde tocar |
 | [docs/NAVEGACION.md](docs/NAVEGACION.md) | Máquina de estados, mapa + A*, uso de las cámaras, misión (ida, víctimas, vuelta), depuración |
 | [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | Todos los parámetros de `RobotConfig.h` |
-| [docs/CALIBRACION.md](docs/CALIBRACION.md) | Rutina del paso 1 y valores obtenidos |
+| [docs/CALIBRACION.md](docs/CALIBRACION.md) | Rutina de calibración de sensores y valores obtenidos |
 | [docs/RESULTADOS.md](docs/RESULTADOS.md) | Resultados, columnas de los CSV, mapas ASCII, qué falta |
 
 ## Estructura del repositorio

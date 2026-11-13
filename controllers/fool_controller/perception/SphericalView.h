@@ -27,6 +27,7 @@
 // Implementación solo en cabecera para no tener que tocar el Makefile.
 class SphericalView {
 public:
+  // Parámetros medidos de la cámara esférica.
   static constexpr int kWidth = 160;
   static constexpr int kHeight = 160;
   static constexpr double kFov = 3.14159265358979;   // 180°
@@ -68,6 +69,7 @@ private:
   // Por fila: columnas mínima y máxima del robot (-1 = fila sin robot). Variables
   // estáticas dentro de funciones: así el archivo se puede incluir desde varios
   // .cpp sin definiciones duplicadas (C++11/14).
+  // Tabla de la máscara: columna mínima del robot en cada fila de la imagen.
   static const int *maskXMin() {
     static const int values[160] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
@@ -83,6 +85,7 @@ private:
   };
     return values;
   }
+  // Tabla de la máscara: columna máxima del robot en cada fila de la imagen.
   static const int *maskXMax() {
     static const int values[160] = {
     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,

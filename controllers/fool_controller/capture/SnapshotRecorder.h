@@ -27,6 +27,7 @@
 // Implementación solo en cabecera para no tocar el Makefile.
 class SnapshotRecorder {
 public:
+  // Crea la carpeta de capturas y borra las anteriores.
   SnapshotRecorder(webots::Camera *front, webots::Camera *sphere, double periodS,
                    bool onlyIfMoved)
       : _front(front), _sphere(sphere), _period(periodS), _onlyIfMoved(onlyIfMoved) {
@@ -38,6 +39,7 @@ public:
               << std::endl;
   }
 
+  // Guarda un par de imágenes y una fila en index.csv si ya toca (y, si aplica, si el robot se movió).
   void update(double timeS, const Pose &pose) {
     if (timeS < _next) return;
     if (_onlyIfMoved && _count > 0 && std::hypot(pose.xM - _lastX, pose.zM - _lastZ) < 0.03 &&
@@ -74,6 +76,7 @@ public:
   }
 
 private:
+  // Borra los .png y el index.csv de corridas pasadas.
   void clearOldCaptures() const {
     if (DIR *dir = ::opendir(_dir.c_str())) {
       while (const dirent *entry = ::readdir(dir)) {

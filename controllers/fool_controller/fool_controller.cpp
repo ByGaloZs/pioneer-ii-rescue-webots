@@ -1,16 +1,16 @@
-// Controlador del Pioneer II para el trabajo final de Robótica.
+// Controlador del Pioneer II para la misión de rescate.
 //
 // Modos (RobotConfig.h::kStartupMode o controllerArgs del robot en el .wbt):
 //   mission    (por defecto) misión completa: ida, buscar y rescatar las 2 víctimas
 //              (parar < 1 m, giro de 360°, mensaje) y volver a la salida. Acepta las
 //              mismas opciones que navigate (nocam, nomap, nosphere, nolive, tag=XX).
-//   navigate   paso 2: ir hasta la línea amarilla del fondo y medir el resultado.
+//   navigate   solo la ida: ir hasta la línea amarilla del fondo y medir el resultado.
 //              Añadir "nocam" para navegar solo con infrarrojos, "nomap" para
 //              desactivar el mapa + A* (Bug puro), "nosphere" para no usar la
 //              cámara esférica en el mapa, "nolive" para no volcar el mapa
 //              en directo (results/live_map.txt, ver tools/live_map.py) y "tag=XX" para etiquetar a mano
 //              (opcional: si no se pone, se detecta el mundo).
-//   calibrate  paso 1: rutina que mide GPS, brújula, encoders e IR.
+//   calibrate  rutina que mide GPS, brújula, encoders e IR.
 //   capture    robot parado: guarda imágenes de las dos cámaras con su pose en
 //              results/captures/ cada vez que lo arrastras a otro sitio. Con
 //              "snap" también se guardan al navegar (cada 2 s, solo si se ha movido).
@@ -39,6 +39,7 @@
 
 namespace {
 
+// Opciones de ejecución: modo y banderas que se leen de los controllerArgs.
 struct Options {
   robot_config::StartupMode mode = robot_config::kStartupMode;
   bool useCamera = robot_config::kUseCameraByDefault;
@@ -49,6 +50,7 @@ struct Options {
   std::string tag;
 };
 
+// Recorre los argumentos y activa o desactiva cada opción por su nombre.
 Options parseOptions(int argc, char **argv) {
   Options options;
   for (int i = 1; i < argc; ++i) {
@@ -72,6 +74,7 @@ Options parseOptions(int argc, char **argv) {
   return options;
 }
 
+// Imprime la distancia de un sector, o "--" si no detecta nada.
 void printSector(const char *name, const SectorReading &reading) {
   std::cout << ' ' << name << '=';
   if (reading.detected())
@@ -80,6 +83,7 @@ void printSector(const char *name, const SectorReading &reading) {
     std::cout << "--";
 }
 
+// Imprime una línea de estado: pose, odometría, estado de sensores y sectores IR.
 void printMonitor(const SensorSnapshot &snapshot, const Localizer &localizer) {
   const Pose &pose = localizer.pose();
   const Pose &odometry = localizer.odometryPose();
@@ -102,15 +106,19 @@ void printMonitor(const SensorSnapshot &snapshot, const Localizer &localizer) {
 
 }  // namespace
 
+// Punto de entrada: arma los módulos según las opciones y corre el ciclo de control.
 int main(int argc, char **argv) {
   webots::Robot robot;
   const int timeStep = static_cast<int>(robot.getBasicTimeStep());
+  // Duración de un paso de simulación en segundos.
   const double dtS = timeStep / 1000.0;
 
+  // Motores: se inicializan y se dejan detenidos.
   MotorController motors(&robot);
   motors.initialize();
   motors.stop();
 
+  // Sensores: si falla alguno, no tiene caso seguir.
   SensorManager sensors(&robot);
   if (!sensors.initialize(timeStep)) {
     std::cerr << "[STARTUP] No se pudieron inicializar los sensores." << std::endl;
@@ -122,6 +130,7 @@ int main(int argc, char **argv) {
   std::cout << "[STARTUP] controllerArgs recibidos (" << argc - 1 << "):";
   for (int i = 1; i < argc; ++i) std::cout << " [" << argv[i] << "]";
   std::cout << std::endl;
+  // Banderas derivadas del modo (la misión incluye la navegación de ida).
   const bool mission = options.mode == robot_config::StartupMode::kMission;
   const bool navigate = options.mode == robot_config::StartupMode::kNavigate || mission;
   const bool capture = options.mode == robot_config::StartupMode::kCapture;
@@ -165,12 +174,15 @@ int main(int argc, char **argv) {
     }
   }
 
+  // Módulos principales: localización, calibración, misión completa y solo ida.
   Localizer localizer;
   SensorCalibration calibration;
   RescueMission rescue(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
   OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
+  // Siguiente instante en el que se imprime el estado (una vez por segundo).
   double nextStatusS = 0.0;
 
+  // Ciclo principal: leer sensores, estimar pose, decidir y mandar a los motores.
   while (robot.step(timeStep) != -1) {
     const SensorSnapshot snapshot = sensors.read();
     localizer.update(snapshot);
@@ -211,6 +223,7 @@ int main(int argc, char **argv) {
         break;
       }
     }
+    // Se envía a los motores el comando que decidió el modo activo.
     motors.setWheelSpeeds(command.leftRadPerSec, command.rightRadPerSec);
 
     if (printNow && localizer.initialized() && snapshot.timeS >= nextStatusS) {

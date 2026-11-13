@@ -11,12 +11,14 @@
 
 namespace {
 
+// Nombres de los 16 sensores IR en el modelo del robot.
 const char *const kDistanceSensorNames[robot_config::kDistanceSensorCount] = {
     "ds0", "ds1", "ds2",  "ds3",  "ds4",  "ds5",  "ds6",  "ds7",
     "ds8", "ds9", "ds10", "ds11", "ds12", "ds13", "ds14", "ds15"};
 
 }  // namespace
 
+// Constructor: todo en nulo hasta llamar a initialize().
 SensorManager::SensorManager(webots::Robot *robot)
     : _robot(robot), _timeStep(0), _gps(nullptr), _compass(nullptr),
       _leftEncoder(nullptr), _rightEncoder(nullptr), _distanceSensors(),
@@ -37,6 +39,7 @@ bool SensorManager::initialize(int timeStep) {
   _leftEncoder = _robot->getPositionSensor(robot_config::kLeftEncoderName);
   _rightEncoder = _robot->getPositionSensor(robot_config::kRightEncoderName);
 
+  // Obtiene los dispositivos por nombre; si falta alguno se aborta la inicialización.
   bool ok = _gps && _compass && _leftEncoder && _rightEncoder;
   for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
     _distanceSensors[i] = _robot->getDistanceSensor(kDistanceSensorNames[i]);
@@ -48,6 +51,7 @@ bool SensorManager::initialize(int timeStep) {
     return false;
   }
 
+  // Se activan todos los sensores con el paso de simulación.
   _gps->enable(_timeStep);
   _compass->enable(_timeStep);
   _leftEncoder->enable(_timeStep);
@@ -60,6 +64,7 @@ bool SensorManager::initialize(int timeStep) {
   return true;
 }
 
+// Activa la cámara frontal la primera vez que se pide.
 webots::Camera *SensorManager::enableFrontCamera() {
   if (_frontCamera != nullptr || _robot == nullptr) return _frontCamera;
   _frontCamera = _robot->getCamera(robot_config::kFrontCameraName);
@@ -74,6 +79,7 @@ webots::Camera *SensorManager::enableFrontCamera() {
   return _frontCamera;
 }
 
+// Activa la cámara esférica la primera vez que se pide.
 webots::Camera *SensorManager::enableSphericalCamera() {
   if (_sphericalCamera != nullptr || _robot == nullptr) return _sphericalCamera;
   _sphericalCamera = _robot->getCamera(robot_config::kSphericalCameraName);
@@ -100,6 +106,7 @@ void SensorManager::shutdown() {
   _initialized = false;
 }
 
+// Imprime el tipo y el alcance máximo de cada IR según su tabla de Webots.
 void SensorManager::printDistanceSensorProfiles() const {
   if (!_initialized) return;
   std::cout << "[SENSORS] Perfil de los sensores de distancia:";
@@ -119,6 +126,7 @@ void SensorManager::printDistanceSensorProfiles() const {
   std::cout << std::endl;
 }
 
+// Guarda la lectura en la ventana y regresa la mediana.
 double SensorManager::filteredResponse(int index, double rawResponse) {
   std::deque<double> &history = _responseHistory[index];
   history.push_back(rawResponse);
@@ -129,11 +137,13 @@ double SensorManager::filteredResponse(int index, double rawResponse) {
   return sorted[sorted.size() / 2];
 }
 
+// Convierte lecturas crudas en un SensorSnapshot: GPS, brújula, encoders y distancias.
 SensorSnapshot SensorManager::read() {
   SensorSnapshot snapshot;
   if (!_initialized) return snapshot;
   snapshot.timeS = _robot->getTime();
 
+  // GPS: se usan x y z; se descartan valores no finitos.
   const double *gps = _gps->getValues();
   if (gps != nullptr && std::isfinite(gps[0]) && std::isfinite(gps[2])) {
     snapshot.gpsValid = true;
@@ -141,6 +151,7 @@ SensorSnapshot SensorManager::read() {
     snapshot.gpsZM = gps[2];
   }
 
+  // Brújula: el yaw sale de atan2 más el desfase calibrado.
   const double *compass = _compass->getValues();
   if (compass != nullptr && std::isfinite(compass[0]) && std::isfinite(compass[2]) &&
       std::hypot(compass[0], compass[2]) > 1e-9) {
@@ -149,11 +160,13 @@ SensorSnapshot SensorManager::read() {
         angles::wrap(std::atan2(compass[2], compass[0]) + robot_config::kCompassYawOffsetRad);
   }
 
+  // Encoders de las ruedas (rad acumulados).
   snapshot.leftEncoderRad = _leftEncoder->getValue();
   snapshot.rightEncoderRad = _rightEncoder->getValue();
   snapshot.encodersValid =
       std::isfinite(snapshot.leftEncoderRad) && std::isfinite(snapshot.rightEncoderRad);
 
+  // IR: mediana, luego tabla de calibración y factor de reflexión para obtener metros.
   snapshot.distanceSensorsValid = true;
   for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
     const double raw = _distanceSensors[i]->getValue();
@@ -170,6 +183,7 @@ SensorSnapshot SensorManager::read() {
     snapshot.distanceDetected[i] = estimate.detected;
     snapshot.distanceSaturated[i] = estimate.nearSaturated;
   }
+  // Agrupa los sensores en sectores (frente, lados, atrás).
   snapshot.computeSectors();
   return snapshot;
 }

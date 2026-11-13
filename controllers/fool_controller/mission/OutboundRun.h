@@ -11,12 +11,13 @@
 #include "../perception/FloorSegmenter.h"
 #include "../sensors/SensorSnapshot.h"
 
-// Prueba del paso 2: ir desde la salida hasta cruzar la línea amarilla del
+// Prueba de la ida: ir desde la salida hasta cruzar la línea amarilla del
 // fondo (z >= 8.2) y medir el resultado. Al terminar imprime una línea
 // [RESULT] y la añade a results/outbound_results.csv. Con mapa, guarda además
 // el mapa de ocupación final en results/map_<tag>_<cam|nocam>.txt.
 class OutboundRun {
 public:
+  // Las banderas activan cámara, mapa, mapa en vivo y cámara esférica.
   OutboundRun(bool useCamera, bool useMap, bool liveMap, bool useSphere, const std::string &tag);
 
   // sphereImage: imagen BGRA de la cámara esférica (o nullptr).
@@ -27,12 +28,14 @@ public:
   void printStatus(const SensorSnapshot &snapshot, const Localizer &localizer) const;
 
 private:
+  // Cierra la prueba: imprime y guarda el resultado.
   void finish(const SensorSnapshot &snapshot, const Localizer &localizer, bool success);
 
   bool _useCamera;
   bool _useMap;
   bool _liveMap;
   bool _useSphere;
+  // Contadores del mapa esférico y de la cámara (para el informe).
   SphericalMapper _sphereMapper;
   int _sphereFrames = 0;
   int _sphereValidFrames = 0;
@@ -49,6 +52,7 @@ private:
   GoalNavigator _navigator;
   SafetyGuard _safety;
 
+  // Datos de arranque y métricas de la prueba.
   double _startTimeS = 0.0;
   double _startX = 0.0, _startZ = 0.0, _startYaw = 0.0;
   double _maxProgressZ = -1e9;

@@ -110,7 +110,7 @@ Una celda es **ocupada** con evidencia ≥ 10 (dos impactos). Las paredes exteri
 principio y no se pueden borrar. Con solo IR + pose **no depende de la luz**; la cámara esférica añade evidencia por encima (`SphericalMapper`, más abajo).
 
 Además cuenta las **visitas** de cada celda (cuántas veces entró el robot) y expone `version()`, que cambia cada vez que una celda pasa
-de libre a ocupada o al revés; el navegador la usa para saber cuándo replanificar. `writeAscii()` genera el dibujo para el informe.
+de libre a ocupada o al revés; el navegador la usa para saber cuándo replanificar. `writeAscii()` genera el dibujo del mapa.
 La geometría de los 16 IR (posición y ángulo en el robot) está tabulada dentro de la clase. `markDisc` marca un disco como ocupado (se usa con las víctimas
 rescatadas) y `writeLive` vuelca el mapa para el visor (con las víctimas en la línea `victims=`).
 
@@ -155,7 +155,7 @@ víctima confirmada más cercana. Cada paso: actualiza mapa (IR + esférica), de
 Salida: `[MISION]`/`[VICTIMA]`/`[RESULT]` en consola, `results/mission_results.csv`, `results/map_<tag>_mission.txt` y `live_map.txt`.
 
 ### `OutboundRun` (modo `navigate`, solo la ida)
-Prueba del paso 2: meta `kOutboundGoalZ`, éxito en z ≥ 8,2, tiempo agotado a 240 s. `finish()` imprime `[RESULT]`, **añade una fila** a `results/outbound_results.csv`
+Prueba de la ida: meta `kOutboundGoalZ`, éxito en z ≥ 8,2, tiempo agotado a 240 s. `finish()` imprime `[RESULT]`, **añade una fila** a `results/outbound_results.csv`
 (si el encabezado cambia, aparta el archivo anterior como `outbound_results_old_<fecha>.csv`) y guarda `map_<tag>_<cam|nocam>.txt`.
 
 ## 9. Control (`control/`)
@@ -167,7 +167,7 @@ Prueba del paso 2: meta `kOutboundGoalZ`, éxito en z ≥ 8,2, tiempo agotado a 
 
 ## 10. Calibración y capturas (`calibration/SensorCalibration`)
 
-Rutina del paso 1 (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md). `capture/SnapshotRecorder.h` guarda pares de imágenes (frontal y esférica) con la pose en `results/captures/` (modo `capture`, o `snap` al navegar).
+Rutina de calibración (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md). `capture/SnapshotRecorder.h` guarda pares de imágenes (frontal y esférica) con la pose en `results/captures/` (modo `capture`, o `snap` al navegar).
 
 ## 11. Utilidades (`common/`)
 

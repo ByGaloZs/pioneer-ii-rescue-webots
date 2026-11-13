@@ -3,12 +3,13 @@
 
 // Parámetros del robot en un único sitio.
 // Valores de cinemática, brújula e IR ajustados con el informe que genera
-// el modo de calibración (ver README.md, paso 1).
+// el modo de calibración (ver README.md).
 
+// Todas las constantes viven en este espacio de nombres, agrupadas por tema.
 namespace robot_config {
 
 // ---------------------------------------------------------------------------
-// Nombres de dispositivos (Pioneer2 de los mundos final_scenarioXX.wbt)
+// Nombres de dispositivos (Pioneer2 en los mundos .wbt)
 // ---------------------------------------------------------------------------
 constexpr const char *kLeftMotorName = "left wheel motor";
 constexpr const char *kRightMotorName = "right wheel motor";
@@ -16,8 +17,8 @@ constexpr const char *kLeftEncoderName = "left wheel sensor";
 constexpr const char *kRightEncoderName = "right wheel sensor";
 constexpr const char *kCompassName = "compass";
 constexpr const char *kGpsName = "gps";
-constexpr const char *kFrontCameraName = "camera_f";      // fase final
-constexpr const char *kSphericalCameraName = "camera_s";  // fase final
+constexpr const char *kFrontCameraName = "camera_f";
+constexpr const char *kSphericalCameraName = "camera_s";
 
 constexpr int kDistanceSensorCount = 16;
 
@@ -66,9 +67,10 @@ constexpr double kObstacleReflectionFactor = 0.52;
 constexpr int kDistanceMedianWindow = 3;
 
 // ---------------------------------------------------------------------------
-// Navegación (paso 2). Velocidades en rad/s de rueda (x 0.0825 = m/s).
+// Navegación (ida). Velocidades en rad/s de rueda (x 0.0825 = m/s).
 // Distancias IR medidas desde cada sensor (alcance real ~0.20 m).
 // ---------------------------------------------------------------------------
+// Parámetros de la navegación reactiva (Bug con apoyo de cámara).
 namespace nav {
 constexpr double kOutboundGoalZ = 8.4;        // línea objetivo de la ida
 constexpr double kOutboundDoneZ = 8.2;        // ida completada (línea amarilla en 8.0)
@@ -112,9 +114,10 @@ constexpr double kStuckMinMoveM = 0.03;
 // Mapa de ocupación y planificador A* (memoria de por dónde ha pasado).
 // Solo usa IR + pose, así que no depende de la luz del escenario.
 // ---------------------------------------------------------------------------
+// Parámetros del mapa de ocupación, el planificador A* y la cámara esférica.
 namespace mapping {
 constexpr double kCellM = 0.1;               // celdas de 10 cm (100 x 200)
-constexpr double kArenaHalfXM = 4.8;         // interior del recinto (enunciado: 10 x 20 m)
+constexpr double kArenaHalfXM = 4.8;         // interior del recinto (10 x 20 m)
 constexpr double kArenaHalfZM = 9.8;
 constexpr double kIrMaxRangeM = 0.19;        // alcance IR de confianza contra cian
 constexpr int kHitIncrement = 6;             // evidencia por impacto IR
@@ -156,8 +159,9 @@ constexpr int kSphereEveryNSteps = 2;        // procesar una de cada N imágenes
 }  // namespace mapping
 
 // ---------------------------------------------------------------------------
-// Víctimas y misión completa (paso 3: vuelta, paso 4: rescate).
+// Víctimas y misión completa (rescate y vuelta).
 // ---------------------------------------------------------------------------
+// Parámetros de detección y rescate de víctimas.
 namespace victims {
 constexpr double kMaxAbsXM = 4.9;            // región donde se aceptan víctimas
 constexpr double kMinZ = 5.0;
@@ -182,7 +186,7 @@ constexpr int kMinGreen = 12;                // verde mínimo absoluto (0-255) d
 constexpr double kFloorGreenFactor = 1.15;   // y al menos esto por el brillo del suelo
 
 constexpr double kApproachRadiusM = 1.15;    // el planificador deja al robot a esta distancia
-constexpr double kStopDistanceM = 0.85;      // parada final (centro robot - centro víctima); enunciado: < 1 m
+constexpr double kStopDistanceM = 0.85;      // parada final (centro robot - centro víctima); debe ser < 1 m
 constexpr double kTooCloseM = 0.70;          // más cerca: retroceder antes de girar
 constexpr double kSpinSpeed = 2.8;           // rad/s de rueda en el giro de 360°
 constexpr double kSpinTargetRad = 6.40;      // 360° + margen
@@ -195,6 +199,7 @@ constexpr double kSearchLegTimeoutS = 30.0;
 constexpr double kSearchWaypointRadiusM = 0.5;
 }  // namespace victims
 
+// Parámetros de la vuelta y del reloj de la misión.
 namespace mission {
 constexpr double kReturnGoalZ = -8.6;        // línea objetivo de la vuelta
 constexpr double kReturnDoneZ = -8.2;        // vuelta completada (línea amarilla de salida en -8)
@@ -206,6 +211,7 @@ constexpr double kReturnSafetyMarginS = 12.0;
 // ---------------------------------------------------------------------------
 // Cámara frontal: robustez a la iluminación.
 // ---------------------------------------------------------------------------
+// Umbrales de color de la cámara frontal.
 namespace camera {
 constexpr int kMinFloorBrightness = 12;      // suelo más oscuro (0-255): cámara desactivada
 constexpr double kObstacleRatio = 1.15;      // cian: g/r y b/r 15 % por encima de los del suelo
@@ -223,6 +229,7 @@ enum class StartupMode { kCalibrate, kMonitor, kNavigate, kCapture, kMission };
 // kMission = misión completa (ida, rescate de las víctimas y vuelta). "navigate"
 // deja solo la prueba de la ida.
 constexpr StartupMode kStartupMode = StartupMode::kMission;
+// Valores por defecto de las opciones; se cambian con controllerArgs.
 constexpr bool kUseCameraByDefault = true;
 // Mapa + A*. Con "nomap" en controllerArgs se vuelve al Bug puro (para comparar).
 constexpr bool kUseMapByDefault = true;

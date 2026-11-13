@@ -6,7 +6,9 @@ struct WheelCommand {
   double leftRadPerSec = 0.0;
   double rightRadPerSec = 0.0;
 
+  // Comando de paro (ambas ruedas en 0).
   static WheelCommand stop() { return WheelCommand(); }
+  // Construye un comando con velocidades izquierda y derecha.
   static WheelCommand of(double left, double right) {
     WheelCommand command;
     command.leftRadPerSec = left;

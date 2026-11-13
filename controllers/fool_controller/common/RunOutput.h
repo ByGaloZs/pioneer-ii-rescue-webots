@@ -16,12 +16,14 @@
 // actual, así que "../../results" es <proyecto>/results (junto a worlds/).
 namespace run_output {
 
+// Crea (si hace falta) y regresa la carpeta de resultados.
 inline std::string directory() {
   const std::string dir = "../../results";
   ::mkdir(dir.c_str(), 0755);  // si ya existe no pasa nada
   return dir;
 }
 
+// Ruta completa de un archivo dentro de results.
 inline std::string path(const std::string &fileName) { return directory() + "/" + fileName; }
 
 // Busca "final_scenarioNN" en un texto (p. ej. la línea de órdenes de Webots).

@@ -8,29 +8,21 @@
 
 namespace {
 
-constexpr double kCameraHeightM = 0.255;   // FORWARD_CAMERA translation y
-constexpr double kCameraForwardM = 0.155;  // FORWARD_CAMERA translation -z
+// Geometría de montaje de la cámara frontal y límites del análisis.
+constexpr double kCameraHeightM = 0.255;   // altura de la cámara frontal en el robot
+constexpr double kCameraForwardM = 0.155;  // distancia de la cámara frontal hacia delante del centro
 constexpr double kMaxRangeM = 10.0;
 constexpr int kObstacleRunPx = 2;          // píxeles seguidos para aceptar un obstáculo
 
 }  // namespace
 
+// Calcula la distancia focal en píxeles a partir del campo de visión.
 FloorSegmenter::FloorSegmenter(int width, int height, double horizontalFovRad)
     : _width(width), _height(height),
       _focalPx(0.5 * width / std::tan(0.5 * horizontalFovRad)),
       _columnStep(std::max(1, width / 60)) {}
 
-PixelClass FloorSegmenter::classify(int red, int green, int blue) {
-  const int brightest = std::max(red, std::max(green, blue));
-  if (brightest < 15) return PixelClass::kFloor;  // líneas negras o sombra
-  // Verde (víctima): verde claramente por encima de rojo y azul.
-  if (green > 1.4 * red && green > 1.4 * blue) return PixelClass::kVictim;
-  // Cian (paredes y obstáculos): verde y azul por encima del rojo.
-  if (green > 1.2 * red && blue > 1.2 * red) return PixelClass::kObstacle;
-  // Gris del suelo, líneas amarillas, niebla...
-  return PixelClass::kFloor;
-}
-
+// Por geometría: entre más abajo del horizonte la fila, más cerca el suelo.
 double FloorSegmenter::groundForwardM(int row) const {
   const double belowHorizonPx = row + 0.5 - 0.5 * _height;
   if (belowHorizonPx <= 0.0) return kMaxRangeM;
@@ -42,11 +34,13 @@ namespace {
 // Clase de un píxel relativa al color del suelo de referencia.
 enum class RelativeClass { kFloor, kObstacle, kVictim, kUnknown };
 
+// Proporciones de color del suelo, que sirven de referencia para clasificar.
 struct FloorReference {
   double greenOverRed = 1.0, blueOverRed = 1.0, greenOverBlue = 1.0;
   int brightness = 0;
 };
 
+// Clasifica un píxel comparando sus proporciones de color contra las del suelo.
 RelativeClass classifyRelative(int r, int g, int b, const FloorReference &floor) {
   namespace c = robot_config::camera;
   const int brightest = std::max(r, std::max(g, b));
@@ -70,6 +64,7 @@ int median(std::vector<int> &values) {
 
 }  // namespace
 
+// Barre cada columna de abajo hacia el horizonte y detecta dónde acaba el suelo libre.
 FreeSpaceProfile FloorSegmenter::process(const unsigned char *image) const {
   namespace c = robot_config::camera;
   FreeSpaceProfile profile;
@@ -103,6 +98,7 @@ FreeSpaceProfile FloorSegmenter::process(const unsigned char *image) const {
   // Columnas consecutivas con víctima = una víctima. Se guarda el punto de la
   // base más cercano al robot (la base del cilindro es lo único que está en el suelo).
   std::vector<double> pendingForward, pendingLeft;
+  // Cierra el grupo de columnas verdes y lo guarda como una víctima.
   auto closeBlob = [&]() {
     if (pendingForward.size() >= 2) {
       size_t best = 0;
@@ -167,6 +163,8 @@ FreeSpaceProfile FloorSegmenter::process(const unsigned char *image) const {
   return profile;
 }
 
+// Para cada punto se calcula su avance y desvío respecto a la dirección dada;
+// si cae dentro del pasillo, limita la distancia libre.
 double FreeSpaceProfile::corridorClearance(double relativeHeadingRad, double halfWidthM,
                                            double maxRangeM) const {
   double clearance = maxRangeM;

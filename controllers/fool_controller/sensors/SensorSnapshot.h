@@ -8,6 +8,7 @@
 #include "../config/RobotConfig.h"
 
 // Distancia mínima (m) de un grupo de sensores. Infinito = nada detectado.
+// Lectura de un sector.
 struct SectorReading {
   double distanceM = std::numeric_limits<double>::infinity();
   bool detected() const { return distanceM < std::numeric_limits<double>::infinity(); }
@@ -53,6 +54,7 @@ struct SensorSnapshot {
   std::array<bool, robot_config::kDistanceSensorCount> distanceSaturated{};
   DistanceSectors sectors;
 
+  // Distancia más cercana entre los sensores indicados que sí detectan algo.
   SectorReading nearest(std::initializer_list<int> indices) const {
     SectorReading reading;
     for (int index : indices)
@@ -61,6 +63,7 @@ struct SensorSnapshot {
     return reading;
   }
 
+  // Llena los sectores con los sensores que corresponden a cada uno.
   void computeSectors() {
     sectors.front = nearest({0, 1, 14, 15});
     sectors.frontLeft = nearest({0, 1});

@@ -22,7 +22,7 @@
 //   rayo IR que la atraviesa sin detectar nada -> -kFreeDecrement
 //   celda bajo el robot     -> mínimo (seguro que está libre)
 // Ocupada si la evidencia >= kOccupiedThreshold. Desconocida = 0.
-// Las paredes exteriores del recinto (dato del enunciado) se marcan desde el
+// Las paredes exteriores del recinto (de 10 x 20 m) se marcan desde el
 // principio como ocupadas y no se pueden borrar.
 //
 // Además cuenta cuántas veces ha entrado el robot en cada celda: el
@@ -31,12 +31,14 @@
 // Implementación solo en cabecera para no tener que tocar el Makefile.
 class OccupancyGrid {
 public:
+  // Geometría de la cuadrícula: origen en (kMinX, kMinZ), 100 x 200 celdas.
   static constexpr double kCellM = robot_config::mapping::kCellM;
   static constexpr double kMinX = -5.0;
   static constexpr double kMinZ = -10.0;
   static constexpr int kWidth = 100;   // celdas en x
   static constexpr int kHeight = 200;  // celdas en z
 
+  // Inicializa todo en desconocido y marca las paredes exteriores como ocupadas y fijas.
   OccupancyGrid()
       : _value(kWidth * kHeight, 0), _visits(kWidth * kHeight, 0),
         _fixed(kWidth * kHeight, 0) {
@@ -52,24 +54,28 @@ public:
       }
   }
 
+  // Índice lineal de una celda, y revisión de que esté dentro del mapa.
   static int index(int cx, int cz) { return cz * kWidth + cx; }
   static bool inside(int cx, int cz) { return cx >= 0 && cx < kWidth && cz >= 0 && cz < kHeight; }
 
+  // Convierte coordenadas del mundo (x, z) a celda; false si queda fuera.
   static bool toCell(double x, double z, int &cx, int &cz) {
     cx = static_cast<int>(std::floor((x - kMinX) / kCellM));
     cz = static_cast<int>(std::floor((z - kMinZ) / kCellM));
     return inside(cx, cz);
   }
+  // Centro de una celda en coordenadas del mundo.
   static void cellCenter(int cx, int cz, double &x, double &z) {
     x = kMinX + (cx + 0.5) * kCellM;
     z = kMinZ + (cz + 0.5) * kCellM;
   }
 
+  // Una celda está ocupada si su evidencia pasa el umbral; fuera del mapa cuenta como ocupada.
   bool occupied(int cx, int cz) const {
     return !inside(cx, cz) ||
            _value[index(cx, cz)] >= robot_config::mapping::kOccupiedThreshold;
   }
-  bool known(int cx, int cz) const { return inside(cx, cz) && _value[index(cx, cz)] != 0; }
+  // Cuántas veces ha entrado el robot a la celda.
   int visits(int cx, int cz) const { return inside(cx, cz) ? _visits[index(cx, cz)] : 0; }
   // Cambia cada vez que una celda pasa de libre a ocupada o al revés.
   int version() const { return _version; }
@@ -78,10 +84,12 @@ public:
   // Integra las lecturas IR de un paso con la pose actual.
   void update(const SensorSnapshot &s, const Pose &pose) {
     namespace m = robot_config::mapping;
+    // Vectores unitarios de "delante" e "izquierda" en el mundo.
     const double fx = -std::sin(pose.yawRad), fz = -std::cos(pose.yawRad);  // delante
     const double lx = -std::cos(pose.yawRad), lz = std::sin(pose.yawRad);   // izquierda
 
     // 1. El robot está aquí: celdas bajo su huella libres; contar visitas.
+    // Primero: la celda del robot suma una visita y su huella se marca como libre.
     int rcx, rcz;
     if (toCell(pose.xM, pose.zM, rcx, rcz)) {
       const int cell = index(rcx, rcz);
@@ -106,6 +114,7 @@ public:
       const double rayX = fx * dirF + lx * dirL, rayZ = fz * dirF + lz * dirL;
       const double sx = pose.xM + fx * kSensorForwardM(i) + lx * kSensorLeftM(i);
       const double sz = pose.zM + fz * kSensorForwardM(i) + lz * kSensorLeftM(i);
+      // Luego: cada IR traza un rayo; lo que atraviesa es libre y el punto de impacto suma evidencia.
       const bool hit = s.distanceDetected[i] && s.distanceM[i] < m::kIrMaxRangeM;
       const double freeUntil = hit ? s.distanceM[i] - 0.04 : m::kIrMaxRangeM;
       for (double t = 0.02; t < freeUntil; t += 0.05) addEvidence(sx + rayX * t, sz + rayZ * t, -m::kFreeDecrement);
@@ -120,6 +129,7 @@ public:
   // Evidencia procedente de la cámara esférica. Un impacto suma; el suelo visto
   // solo marca como libre lo que no tiene evidencia de ocupación (no borra lo
   // que hayan visto los infrarrojos).
+  // Atajos para que la cámara esférica agregue evidencia al mapa.
   void addCameraHit(double x, double z, int delta) { addEvidence(x, z, delta); }
   void addCameraFree(double x, double z) {
     int cx, cz;
@@ -130,6 +140,7 @@ public:
 
   // Marca el cilindro de una víctima rescatada como ocupado (radio 0.3 m) para que
   // el planificador lo rodee en la vuelta.
+  // Marca un disco como ocupado (para tratar a la víctima como obstáculo).
   void markDisc(double x, double z, double radiusM) {
     const int r = static_cast<int>(std::ceil(radiusM / kCellM));
     int cx0, cz0;
@@ -144,6 +155,7 @@ public:
   // Volcado para el visor en directo (tools/live_map.py). Se escribe en un
   // archivo temporal y se renombra, así el visor nunca lee un archivo a medias.
   // Formato: líneas "clave=valor", luego "grid" y las filas de arriba (+z) a abajo.
+  // Escribe el mapa en un archivo para el visor en vivo.
   void writeLive(const std::string &path, double timeS, const std::string &state,
                  const Pose &pose, double goalZ,
                  const std::vector<std::pair<double, double>> &plan,
@@ -169,6 +181,7 @@ public:
 
   // Dibujo ASCII para el informe: '#' ocupado, '.' libre visto, 'o' recorrido,
   // '*' último plan, ' ' desconocido. Arriba = +z (víctimas).
+  // Guarda el mapa como dibujo ASCII.
   void writeAscii(const std::string &path,
                   const std::vector<std::pair<double, double>> &plan) const {
     std::vector<char> canvas(kWidth * kHeight, ' ');
@@ -195,22 +208,26 @@ public:
 private:
   // Geometría de los infrarrojos del Pioneer2 (proto): posición en el marco del
   // robot (delante, izquierda) y ángulo del rayo (positivo = izquierda).
+  // Ángulo del rayo de cada IR respecto al frente del robot.
   static double kSensorAngleRad(int i) {
     static const double deg[16] = {10, 30, 50, 90, 90, 130, 150, 170,
                                    -170, -150, -130, -90, -90, -50, -30, -10};
     return deg[i] * 3.14159265358979 / 180.0;
   }
+  // Posición de cada IR hacia delante (m) en el marco del robot.
   static double kSensorForwardM(int i) {
     static const double f[16] = {0.164, 0.147, 0.116, 0.071, -0.160, -0.205, -0.236, -0.253,
                                  -0.253, -0.236, -0.205, -0.160, 0.071, 0.116, 0.147, 0.164};
     return f[i];
   }
+  // Posición de cada IR hacia la izquierda (m) en el marco del robot.
   static double kSensorLeftM(int i) {
     static const double l[16] = {0.027, 0.077, 0.118, 0.136, 0.136, 0.118, 0.077, 0.027,
                                  -0.027, -0.077, -0.118, -0.136, -0.136, -0.118, -0.077, -0.027};
     return l[i];
   }
 
+  // Suma evidencia a la celda que contiene el punto (x, z).
   void addEvidence(double x, double z, int delta) {
     int cx, cz;
     if (!toCell(x, z, cx, cz)) return;
@@ -219,6 +236,8 @@ private:
     setValue(cx, cz, _value[i] + delta);
   }
 
+  // Asigna la evidencia recortada al rango permitido; respeta las celdas fijas y
+  // actualiza la versión del mapa cuando una celda cambia entre libre y ocupada.
   void setValue(int cx, int cz, int value) {
     namespace m = robot_config::mapping;
     if (!inside(cx, cz)) return;

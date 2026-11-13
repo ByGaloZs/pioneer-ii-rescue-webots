@@ -26,15 +26,19 @@
 //  5. RETROCESO y INFORME (consola + calibration_report.txt).
 class SensorCalibration {
 public:
+  // Un paso de la rutina: regresa las ruedas según la fase en curso.
   WheelCommand step(const SensorSnapshot &snapshot, const Localizer &localizer);
+  // La rutina termina al llegar a kDone (ya con el informe escrito).
   bool finished() const { return _phase == Phase::kDone; }
 
 private:
+  // Fases de la rutina, cada una seguida de una pausa para estabilizar.
   enum class Phase {
     kStatic, kDriveStraight, kSettleDrive, kSpinLeft, kSettleSpinLeft, kSpinRight,
     kSettleSpinRight, kTurnBack, kSettleTurn, kApproach, kSettleApproach, kBackOff, kDone
   };
 
+  // Una muestra de los IR frontales mientras el robot se acerca a la pared.
   struct IrSample {
     double timeS;
     double travelledM;
@@ -43,11 +47,17 @@ private:
     bool ds0Valid, ds15Valid;
   };
 
+  // Cambia de fase y guarda los datos de arranque.
   void enter(Phase phase, const SensorSnapshot &snapshot, const Localizer &localizer);
+  // Avanza manteniendo el rumbo con corrección proporcional.
   WheelCommand holdHeading(double speed, double targetYaw, double yaw) const;
+  // Calcula los resultados de la recta (distancia GPS vs encoders, rumbo).
   void finishDrive(const SensorSnapshot &snapshot, const Localizer &localizer);
+  // Calcula los resultados de un giro de 360° (brújula vs encoders).
   void finishSpin(bool left, const SensorSnapshot &snapshot, const Localizer &localizer);
+  // Imprime el informe y lo guarda en un archivo.
   void writeReport(const SensorSnapshot &snapshot, const Localizer &localizer);
+  // Compara distancia IR contra distancia recorrida para sacar el factor de reflexión.
   void analyseInfrared(std::ostringstream &out);
 
   Phase _phase = Phase::kStatic;

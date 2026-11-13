@@ -25,13 +25,13 @@
 #include "../perception/VictimDetector.h"
 #include "../sensors/SensorSnapshot.h"
 
-// Misión completa del trabajo final (pasos 2, 3 y 4):
+// Misión completa: ida, búsqueda, rescate de las víctimas y vuelta:
 //
 //   IDA        ir hasta el fondo del recinto (z >= 8.2) con mapa + A*.
 //   BUSCAR     recorrer el pasillo del fondo (z ~ 8.9) hasta ver las 2 víctimas
 //              (cámara frontal + esférica; VictimTracker las confirma).
 //   IR_A       ir con A* hasta ~1.15 m de la víctima confirmada más cercana.
-//   ACERCAR    avance directo hasta 0.85 m del centro (enunciado: < 1 m).
+//   ACERCAR    avance directo hasta 0.85 m del centro (debe ser < 1 m).
 //   GIRO       giro completo de 360° en el sitio y mensaje en la terminal.
 //   VUELTA     A* hacia la línea de salida (z <= -8.2), prefiriendo las celdas
 //              por las que ya pasó (se sabe que caben).
@@ -42,13 +42,17 @@
 // Implementación solo en cabecera para no tener que tocar el Makefile.
 class RescueMission {
 public:
+  // Fases de la misión, en orden.
   enum class Phase { kOutbound, kSearch, kGoto, kApproach, kSpin, kReturn, kDone };
 
+  // Las banderas activan cámara, mapa, mapa en vivo y cámara esférica.
   RescueMission(bool useCamera, bool useMap, bool liveMap, bool useSphere,
                 const std::string &tag)
       : _useCamera(useCamera), _useMap(useMap), _liveMap(liveMap && useMap),
         _useSphere(useSphere), _tag(tag) {}
 
+  // Un paso de la misión: actualiza mapa y detección de víctimas, ejecuta la fase actual
+  // y pasa el comando por el guardia de seguridad.
   WheelCommand step(const SensorSnapshot &snapshot, const Localizer &localizer,
                     const FreeSpaceProfile *camera, const unsigned char *sphereImage,
                     double dtS) {
@@ -126,6 +130,7 @@ public:
 
   bool finished() const { return _finished; }
 
+  // Imprime una línea de estado de la misión.
   void printStatus(const SensorSnapshot &snapshot, const Localizer &localizer) const {
     const Pose &pose = localizer.pose();
     std::cout << std::fixed << std::setprecision(1) << "[MISION] t="
@@ -141,6 +146,7 @@ public:
 
 private:
   // ------------------------------------------------------------------ fases
+  // Primer paso: guarda el punto de partida y fija la meta de la ida.
   void start(const SensorSnapshot &snapshot, const Localizer &localizer) {
     namespace nav = robot_config::nav;
     const Pose &pose = localizer.pose();
@@ -160,6 +166,7 @@ private:
               << " | esférica " << (_useSphere ? "SI" : "no") << std::endl;
   }
 
+  // Cambia de fase y hace la preparación que necesita (búsqueda o vuelta).
   void enter(Phase phase, const Pose &pose) {
     _phase = phase;
     _phaseStartS = _timeS;
@@ -170,7 +177,6 @@ private:
         _searchLeg = -1;  // se elige en searchStep
         break;
       case Phase::kReturn: {
-        namespace nav = robot_config::nav;
         _goalZ = robot_config::mission::kReturnGoalZ;
         _returnStartS = _timeS - _startTimeS;
         _navigator.setPreferVisited(true);
@@ -178,7 +184,6 @@ private:
         std::cout << std::fixed << std::setprecision(1) << "[MISION] t=" << _returnStartS
                   << " s: VOLVIENDO a la salida con " << _tracker.rescuedCount()
                   << " víctima(s) rescatada(s)." << std::endl;
-        (void)nav::kOutboundGoalZ;
         break;
       }
       default:
@@ -186,6 +191,7 @@ private:
     }
   }
 
+  // Imprime las candidatas a víctima con su estado.
   void printCandidates() const {
     std::cout << std::fixed << std::setprecision(2);
     for (const VictimTracker::Candidate &c : _tracker.candidates())
@@ -194,6 +200,7 @@ private:
                 << (c.rescued ? " RESCATADA" : "") << (c.failed ? " FALLIDA" : "") << std::endl;
   }
 
+  // Arma el barrido del pasillo del fondo, empezando por el extremo más cercano.
   void buildWaypoints(const Pose &pose) {
     namespace v = robot_config::victims;
     _waypoints.clear();
@@ -213,6 +220,7 @@ private:
     return elapsed + reserve > robot_config::nav::kMissionTimeLimitS - m::kReturnSafetyMarginS;
   }
 
+  // Búsqueda: si ya hay una víctima confirmada va por ella; si no, recorre los puntos del barrido.
   WheelCommand searchStep(const SensorSnapshot &snapshot, const Pose &pose,
                           const FreeSpaceProfile *camera, double elapsed, double dtS) {
     namespace v = robot_config::victims;
@@ -260,6 +268,7 @@ private:
     return _navigator.step(snapshot, pose, camera, dtS);
   }
 
+  // Va con A* hasta cerca de la víctima, actualizando su posición mientras la ve mejor.
   WheelCommand gotoStep(const SensorSnapshot &snapshot, const Pose &pose, double elapsed,
                         double dtS) {
     namespace v = robot_config::victims;
@@ -284,6 +293,7 @@ private:
     return _navigator.step(snapshot, pose, nullptr, dtS);  // sin cámara: la víctima es la meta
   }
 
+  // Avance directo hasta la distancia de parada, retrocediendo si se pasó de cerca.
   WheelCommand approachStep(const SensorSnapshot &snapshot, const Pose &pose, double elapsed) {
     namespace v = robot_config::victims;
     VictimTracker::Candidate &c = _tracker.candidates()[_target];
@@ -340,6 +350,7 @@ private:
     return WheelCommand::of(speed - turn, speed + turn);
   }
 
+  // Giro de 360° en el sitio; al completarlo marca la víctima como rescatada y avisa.
   WheelCommand spinStep(const SensorSnapshot &snapshot, const Pose &pose, double elapsed) {
     (void)snapshot;
     namespace v = robot_config::victims;
@@ -372,6 +383,7 @@ private:
   }
 
   // -------------------------------------------------------------- percepción
+  // Alimenta el rastreador con lo que ven la cámara frontal y la esférica.
   void detectVictims(const Pose &pose, const FreeSpaceProfile *camera,
                      const unsigned char *sphereImage, bool sphereTurn) {
     _tracker.beginFrame();
@@ -384,6 +396,7 @@ private:
     if (_phase == Phase::kOutbound || _phase == Phase::kSearch) _tracker.mergeDuplicates();
   }
 
+  // Lleva la cuenta de los casi-roces según los IR.
   void trackContacts(const SensorSnapshot &snapshot) {
     bool near = false;
     for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
@@ -409,6 +422,7 @@ private:
     return "?";
   }
 
+  // Etiqueta de estado para el mapa en vivo.
   std::string stateLabel() const {
     std::string label = phaseName();
     if (_phase == Phase::kOutbound || _phase == Phase::kSearch || _phase == Phase::kGoto ||
@@ -419,6 +433,7 @@ private:
     return label;
   }
 
+  // Línea con las víctimas para el mapa en vivo.
   std::string victimsLine() const {
     std::ostringstream out;
     out << "victims=";
@@ -428,6 +443,7 @@ private:
     return out.str();
   }
 
+  // Vuelca el mapa en vivo cada cierto tiempo.
   void writeLive(const SensorSnapshot &snapshot, const Pose &pose, double elapsed) {
     if (!_liveMap || snapshot.timeS < _nextLiveS) return;
     _nextLiveS = snapshot.timeS + robot_config::kLiveMapPeriodS;
@@ -435,6 +451,7 @@ private:
                     _navigator.planner().path(), victimsLine());
   }
 
+  // Termina la misión: imprime el resultado, lo guarda en CSV y guarda el mapa final.
   void finish(const SensorSnapshot &snapshot, const Localizer &localizer, bool success) {
     _finished = true;
     const bool wasPhaseReturn = _phase == Phase::kReturn;
@@ -499,6 +516,7 @@ private:
   }
 
   // ----------------------------------------------------------------- estado
+  // Estado interno: banderas, fase, tiempos, módulos y datos de las víctimas.
   bool _useCamera, _useMap, _liveMap, _useSphere;
   std::string _tag;
   bool _started = false, _finished = false;
