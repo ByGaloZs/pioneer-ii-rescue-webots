@@ -18,6 +18,7 @@ const double kSensorAngleDeg[robot_config::kDistanceSensorCount] = {
 
 double clamp(double v, double limit) { return std::max(-limit, std::min(limit, v)); }
 
+// Distancia de un IR, o infinito si no detecta nada.
 double ir(const SensorSnapshot &s, int index) {
   return s.distanceDetected[index] ? s.distanceM[index] : kInf;
 }
@@ -36,6 +37,7 @@ WheelCommand drive(double speed, double turn) {
 
 }  // namespace
 
+// Fija una meta puntual (víctima) y reinicia el estado y las estadísticas.
 void GoalNavigator::setGoalPoint(double x, double z, double radiusM, const Pose &pose) {
   _pointGoal = true;
   _gx = x;
@@ -48,12 +50,14 @@ void GoalNavigator::setGoalPoint(double x, double z, double radiusM, const Pose 
   if (_grid != nullptr) replanIfNeeded(pose, true);
 }
 
+// Actualiza la posición de la meta puntual sin reiniciar el estado.
 void GoalNavigator::moveGoalPoint(double x, double z, const Pose &pose) {
   _gx = x;
   _gz = z;
   if (_grid != nullptr) replanIfNeeded(pose, true);
 }
 
+// Fija una meta de tipo línea (z = constante).
 void GoalNavigator::setGoalLine(double zTarget, const Pose &pose) {
   _pointGoal = false;
   _zTarget = zTarget;
@@ -65,18 +69,21 @@ void GoalNavigator::setGoalLine(double zTarget, const Pose &pose) {
   if (_grid != nullptr) replanIfNeeded(pose, true);
 }
 
+// Distancia que falta: longitud del plan, o línea recta si no hay plan.
 double GoalNavigator::remainingM(const Pose &pose) const {
   if (planActive()) return _planner.remainingM(pose);
   if (_pointGoal) return std::max(0.0, std::hypot(_gx - pose.xM, _gz - pose.zM) - _gRadius);
   return std::max(0.0, (_zTarget - pose.zM) * _direction);
 }
 
+// Orientación de la meta en el convenio de yaw.
 double GoalNavigator::currentGoalYaw(const Pose &pose) const {
   if (planActive()) return _planner.lookaheadYaw(pose);
   if (_pointGoal) return std::atan2(-(_gx - pose.xM), -(_gz - pose.zM));
   return _goalYaw;
 }
 
+// Replanifica si es forzado, si pasó el periodo o si el mapa cambió.
 void GoalNavigator::replanIfNeeded(const Pose &pose, bool force) {
   namespace m = robot_config::mapping;
   if (_grid == nullptr) return;
@@ -104,6 +111,7 @@ const char *GoalNavigator::stateName() const {
   return "?";
 }
 
+// Máquina de estados principal; al final pasa el comando por el detector de atasco.
 WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pose,
                                  const FreeSpaceProfile *camera, double dtS) {
   _timeS = snapshot.timeS;
@@ -220,6 +228,7 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
   return command;
 }
 
+// Avance hacia la meta: rodea si hay obstáculo; si no, escoge rumbo y velocidad con la cámara.
 WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
                                      const FreeSpaceProfile *camera, double goalRel) {
   // 1. ¿Obstáculo delante? -> rodearlo.
@@ -297,6 +306,7 @@ WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
   return drive(speed, turn);
 }
 
+// Prepara el rodeo del obstáculo.
 void GoalNavigator::startFollowing(const SensorSnapshot &s, const Pose &pose, double goalRel) {
   ++_encounters;
   // Con mapa: replanificar ya (el obstáculo acaba de entrar en el mapa) y usar
@@ -337,6 +347,7 @@ void GoalNavigator::startFollowing(const SensorSnapshot &s, const Pose &pose, do
   _state = State::kFollowWall;
 }
 
+// Revisa con IR y cámara si se puede avanzar hacia la meta.
 bool GoalNavigator::goalDirectionFree(const SensorSnapshot &s, const FreeSpaceProfile *camera,
                                       double goalRel) const {
   for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
@@ -349,6 +360,7 @@ bool GoalNavigator::goalDirectionFree(const SensorSnapshot &s, const FreeSpacePr
   return true;
 }
 
+// Rodea la pared: mantiene distancia y paralelismo, y decide cuándo soltarla.
 WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose,
                                        const FreeSpaceProfile *camera, double goalRel,
                                        double dtS) {
@@ -461,6 +473,7 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
   return drive(speed, side * towardWall);
 }
 
+// Entra al estado ALIGN con el sentido de giro indicado.
 void GoalNavigator::enterAlign(int direction) {
   _state = State::kAlign;
   _alignDir = direction;

@@ -3,9 +3,6 @@
 
 #include <vector>
 
-// Clase de cada píxel según su color.
-enum class PixelClass { kFloor, kObstacle, kVictim };
-
 // Punto del suelo donde termina el espacio libre en una columna de la imagen,
 // expresado en el marco del robot (metros desde el centro del robot):
 //   forwardM  hacia delante,  leftM  hacia la izquierda.
@@ -57,17 +54,17 @@ public:
   FloorSegmenter(int width, int height, double horizontalFovRad);
 
   // image: buffer BGRA de webots::Camera::getImage().
+  // Procesa una imagen y regresa el perfil de espacio libre por columna.
   FreeSpaceProfile process(const unsigned char *image) const;
 
-  // Clasificación con umbrales fijos (respaldo, y para la fase de víctimas).
-  static PixelClass classify(int red, int green, int blue);
-
 private:
+  // Convierte una fila de la imagen en distancia al suelo (modelo de cámara plana).
   double groundForwardM(int row) const;  // distancia al suelo visto en esa fila
 
   int _width;
   int _height;
   double _focalPx;
+  // Se procesa una columna de cada _columnStep para ahorrar tiempo (~60 columnas).
   int _columnStep;
 };
 

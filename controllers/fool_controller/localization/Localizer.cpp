@@ -5,6 +5,7 @@
 #include "../common/Angles.h"
 #include "../config/RobotConfig.h"
 
+// Toma la primera lectura válida como pose de arranque y reinicia los acumuladores.
 bool Localizer::initialize(const SensorSnapshot &snapshot) {
   if (!snapshot.gpsValid || !snapshot.compassValid || !snapshot.encodersValid) return false;
   _pose.xM = snapshot.gpsXM;
@@ -21,6 +22,7 @@ bool Localizer::initialize(const SensorSnapshot &snapshot) {
   return true;
 }
 
+// Se llama en cada paso: actualiza orientación, odometría y pose final.
 void Localizer::update(const SensorSnapshot &snapshot) {
   if (!_initialized) {
     initialize(snapshot);

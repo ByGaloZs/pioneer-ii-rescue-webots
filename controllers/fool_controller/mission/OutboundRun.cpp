@@ -17,19 +17,23 @@
 namespace nav = robot_config::nav;
 
 namespace {
+// Distancia a la que se considera que el IR casi toca algo.
 constexpr double kNearContactM = 0.03;  // IR casi en contacto: posible roce
 }
 
+// El mapa en vivo y la esférica solo aplican si hay mapa.
 OutboundRun::OutboundRun(bool useCamera, bool useMap, bool liveMap, bool useSphere,
                          const std::string &tag)
     : _useCamera(useCamera), _useMap(useMap), _liveMap(liveMap && useMap),
       _useSphere(useSphere && useMap), _tag(tag) {}
 
+// Un paso de la ida: actualiza mapa, navega y filtra el comando con el guardia de seguridad.
 WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &localizer,
                                const FreeSpaceProfile *camera,
                                const unsigned char *sphereImage, double dtS) {
   if (_finished || !localizer.initialized()) return WheelCommand::stop();
   const Pose &pose = localizer.pose();
+  // Primer paso: se guarda el punto de partida y se fija la meta.
   if (!_started) {
     _started = true;
     _startTimeS = snapshot.timeS;
@@ -58,6 +62,7 @@ WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &
   _maxProgressZ = std::max(_maxProgressZ, pose.zM);
 
   const double elapsed = snapshot.timeS - _startTimeS;
+  // Termina al cruzar la línea de meta o al agotar el tiempo.
   if (pose.zM >= nav::kOutboundDoneZ) {
     finish(snapshot, localizer, true);
     return WheelCommand::stop();
@@ -90,6 +95,7 @@ WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &
   return _safety.filter(snapshot, command);
 }
 
+// Imprime una línea de avance de la ida.
 void OutboundRun::printStatus(const SensorSnapshot &snapshot, const Localizer &localizer) const {
   const Pose &pose = localizer.pose();
   std::cout << std::fixed << std::setprecision(1) << "[NAV] t=" << snapshot.timeS - _startTimeS
@@ -113,6 +119,7 @@ void OutboundRun::printStatus(const SensorSnapshot &snapshot, const Localizer &l
   std::cout << std::endl;
 }
 
+// Imprime el resultado, lo agrega al CSV y guarda el mapa final.
 void OutboundRun::finish(const SensorSnapshot &snapshot, const Localizer &localizer,
                          bool success) {
   _finished = true;

@@ -15,6 +15,7 @@ recorrido, flecha roja = robot, línea verde = plan A*, línea amarilla = meta.
 Con --world se superponen en gris claro las paredes REALES del escenario, para ver
 qué ha descubierto ya el robot y si hay paredes fantasma.
 """
+# Librerías estándar: argumentos, matemáticas, archivos, expresiones regulares y tiempo.
 import argparse
 import math
 import os
@@ -23,7 +24,9 @@ import sys
 import time
 
 # results/ está junto a worlds/, un nivel por encima de tools/ (funciona desde cualquier carpeta).
+# Archivo del mapa que escribe el controlador, junto a la carpeta worlds/.
 DEFAULT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "results", "live_map.txt")
+# Límites del recinto en metros (x de -5 a 5, z de -10 a 10).
 X_MIN, X_MAX, Z_MIN, Z_MAX = -5.0, 5.0, -10.0, 10.0
 
 
@@ -34,6 +37,7 @@ def read_frame(path):
             lines = f.read().split("\n")
     except OSError:
         return None
+    # Cuadro por defecto; se llena con las líneas "clave=valor" del archivo.
     frame = {"t": 0.0, "state": "?", "x": 0.0, "z": 0.0, "yaw": 0.0, "goalz": 8.6, "plan": [], "victims": [], "rows": []}
     try:
         i = 0
@@ -52,6 +56,7 @@ def read_frame(path):
             elif key == "plan":
                 frame["plan"] = [tuple(float(c) for c in p.split(",")) for p in value.split() if "," in p]
             i += 1
+        # Después de "grid" vienen las filas del mapa (arriba = +z).
         frame["rows"] = [r for r in lines[i + 1:] if r]
     except ValueError:
         return None
@@ -64,6 +69,7 @@ def load_world_walls(path):
     Lectura simplificada: Solid con Box y rotación en torno a Y. Suficiente para ver
     el escenario al lado del mapa; no sustituye a Webots.
     """
+    # Se leen solo los Solid con geometría Box del mundo.
     text = open(path, encoding="utf-8", errors="ignore").read()
     boxes = []
     for block in re.split(r"\n(?=(?:DEF \w+ )?Solid \{)", text):
@@ -88,6 +94,7 @@ def load_world_walls(path):
 
 def wall_mask(boxes):
     """Matriz [fila de arriba a abajo][columna] de booleanos a 10 cm."""
+    # Se marca cada celda de 10 cm cuyo centro cae dentro de alguna caja (con su giro).
     mask = [[False] * 100 for _ in range(200)]
     for r in range(200):
         z = Z_MAX - (r + 0.5) * 0.1
@@ -116,9 +123,11 @@ def run_matplotlib(args, mask):
     from matplotlib.colors import ListedColormap
 
     # 0 desconocido, 1 libre, 2 recorrido, 3 ocupado, 4 pared real aún sin descubrir
+    # Colores: desconocido, libre, recorrido, ocupado y pared real sin descubrir.
     cmap = ListedColormap(["#f4f1ea", "#ffffff", "#9ec5ee", "#2b2b2b", "#d9a8a8"])
     plt.ion() if not args.save else None
     fig, ax = plt.subplots(figsize=(5.2, 9.2))
+    # Elementos del dibujo que se actualizan: mapa, plan, robot, víctimas y meta.
     image = ax.imshow([[0] * 100] * 200, cmap=cmap, vmin=0, vmax=4, origin="upper",
                       extent=(X_MIN, X_MAX, Z_MIN, Z_MAX), interpolation="nearest")
     plan_line, = ax.plot([], [], "-", color="#2e9e44", lw=1.8, label="plan A*")
@@ -141,6 +150,7 @@ def run_matplotlib(args, mask):
             frame = read_frame(args.file)
             if frame:
                 last_mtime = mtime
+                # Se traduce cada carácter del archivo a un código de color.
                 code = {"#": 3, "o": 2, ".": 1, " ": 0}
                 data = [[code.get(ch, 0) for ch in row[:100].ljust(100)] for row in frame["rows"][:200]]
                 if mask:
@@ -192,6 +202,7 @@ def run_terminal(args, mask):
             if frame:
                 last_mtime = mtime
                 rows = frame["rows"]
+                # Se reduce el mapa a bloques de 20 x 40 cm, uno por carácter.
                 canvas = []
                 for r in range(0, 200, 4):  # 40 cm de alto por línea (los caracteres son altos)
                     line = ""
@@ -212,6 +223,7 @@ def run_terminal(args, mask):
                         line += ch
                     canvas.append(list(line))
 
+                # Escribe un carácter en la posición del mundo (x, z).
                 def put(x, z, ch):
                     c = int((x - X_MIN) / 0.2)
                     r = int((Z_MAX - z) / 0.4)
@@ -231,7 +243,9 @@ def run_terminal(args, mask):
         time.sleep(0.3)
 
 
+# Punto de entrada: elige matplotlib o terminal según lo disponible.
 def main():
+    # Opciones de línea de comandos.
     parser = argparse.ArgumentParser(description="Visor en directo del mapa del robot")
     parser.add_argument("--file", default=DEFAULT_FILE, help="archivo de mapa (por defecto <proyecto>/results/live_map.txt)")
     parser.add_argument("--world", help="mundo .wbt para superponer las paredes reales")
@@ -239,6 +253,7 @@ def main():
     parser.add_argument("--save", help="guardar una imagen PNG del estado actual y salir")
     args = parser.parse_args()
 
+    # Si se pasó un mundo, se calculan sus paredes reales para superponerlas.
     mask = wall_mask(load_world_walls(args.world)) if args.world else None
     try:
         if args.terminal:

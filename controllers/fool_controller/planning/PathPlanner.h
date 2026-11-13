@@ -29,6 +29,7 @@ public:
   using Point = std::pair<double, double>;  // (x, z)
 
   // Meta: la línea z = zTarget (hacia +z si direction > 0, hacia -z si < 0).
+  // Planea hacia una línea meta; la heurística es la distancia que falta hasta esa línea.
   bool plan(const OccupancyGrid &grid, const Pose &pose, double zTarget, double direction) {
     const double cell = OccupancyGrid::kCellM;
     auto cellZ = [cell](int cz) { return OccupancyGrid::kMinZ + (cz + 0.5) * cell; };
@@ -38,6 +39,7 @@ public:
   }
 
   // Meta: cualquier celda a <= radiusM del punto (gx, gz). Para ir hasta una víctima.
+  // Planea hacia un punto; la meta es llegar a menos de radiusM de él.
   bool planPoint(const OccupancyGrid &grid, const Pose &pose, double gx, double gz,
                  double radiusM) {
     return search(grid, pose,
@@ -46,13 +48,16 @@ public:
   }
 
   // En la vuelta: preferir celdas ya recorridas (se sabe que el robot cabe).
+  // Activa el modo vuelta: las celdas no recorridas cuestan más.
   void setPreferVisited(bool prefer) { _preferVisited = prefer; }
 
+  // Núcleo del A*: ocho vecinos, celdas prohibidas fuera de alcance y costos extra.
   bool search(const OccupancyGrid &grid, const Pose &pose,
               const std::function<bool(int, int)> &isGoal,
               const std::function<double(int, int)> &heuristic) {
     namespace m = robot_config::mapping;
     constexpr int W = OccupancyGrid::kWidth, H = OccupancyGrid::kHeight;
+    // Se reconstruye el mapa de costos en cada búsqueda.
     buildCostmap(grid);
     ++_plans;
     _path.clear();
@@ -73,6 +78,7 @@ public:
     g[start] = 0.0f;
     open.push({static_cast<float>(heuristic(sx, sz)), start});
 
+    // Desplazamientos de los 8 vecinos (los 4 primeros son rectos, los demás diagonales).
     static const int kDx[8] = {1, -1, 0, 0, 1, 1, -1, -1};
     static const int kDz[8] = {0, 0, 1, -1, 1, -1, 1, -1};
     int goal = -1;
@@ -155,12 +161,14 @@ public:
   }
 
 private:
+  // Distancia del centro de una celda a un punto del mundo.
   static double distanceTo(int cx, int cz, double gx, double gz) {
     double x, z;
     OccupancyGrid::cellCenter(cx, cz, x, z);
     return std::hypot(x - gx, z - gz);
   }
 
+  // Punto de la ruta más cercano al robot.
   int closestIndex(const Pose &pose) const {
     // La ruta empieza en el robot: buscar el más cercano en el primer tramo.
     int best = 0;
@@ -176,6 +184,7 @@ private:
     return best;
   }
 
+  // Revisa que el tramo recto entre dos puntos no cruce celdas prohibidas.
   bool lineOfSight(double x0, double z0, double x1, double z1) const {
     namespace m = robot_config::mapping;
     const double length = std::hypot(x1 - x0, z1 - z0);
@@ -223,6 +232,7 @@ private:
       }
   }
 
+  // Estado interno: celdas prohibidas, costo extra, ruta y distancia restante por punto.
   std::vector<uint8_t> _lethal;
   std::vector<float> _extra;
   std::vector<Point> _path;

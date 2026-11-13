@@ -29,6 +29,7 @@
 // si rodeando el plan pide volver atrás, deja la pared y sigue el plan.
 class GoalNavigator {
 public:
+  // Estados del navegador (ver la lista de comportamientos arriba).
   enum class State { kAlign, kGoToGoal, kFollowWall, kReverseOut, kTurnAround, kRecover };
 
   // Meta: la línea z = zTarget. La dirección se deduce de la posición actual.
@@ -43,14 +44,17 @@ public:
   void setMap(const OccupancyGrid *grid) { _grid = grid; }
 
   // camera puede ser nullptr (navegación solo con infrarrojos).
+  // Un paso de control: elige el comportamiento según el estado y regresa las velocidades de rueda.
   WheelCommand step(const SensorSnapshot &snapshot, const Pose &pose,
                     const FreeSpaceProfile *camera, double dtS);
 
+  // Estado actual y su nombre para la bitácora.
   State state() const { return _state; }
   const char *stateName() const;
   double remainingM(const Pose &pose) const;  // distancia a la línea objetivo
 
   // Estadísticas para el informe.
+  // Estadísticas: obstáculos encontrados, cambios de lado y recuperaciones.
   int obstacleEncounters() const { return _encounters; }
   int sideSwitches() const { return _sideSwitches; }
   int recoveries() const { return _recoveries; }
@@ -59,16 +63,24 @@ public:
   const PathPlanner &planner() const { return _planner; }
 
 private:
+  // Avanza hacia la meta eligiendo dirección y velocidad.
   WheelCommand goToGoal(const SensorSnapshot &s, const Pose &pose,
                         const FreeSpaceProfile *camera, double goalRel);
+  // Rodea un obstáculo siguiendo su contorno con los IR.
   WheelCommand followWall(const SensorSnapshot &s, const Pose &pose,
                           const FreeSpaceProfile *camera, double goalRel, double dtS);
+  // Inicia el rodeo: escoge de qué lado y guarda el punto de choque.
   void startFollowing(const SensorSnapshot &s, const Pose &pose, double goalRel);
+  // Indica si la dirección de la meta está despejada.
   bool goalDirectionFree(const SensorSnapshot &s, const FreeSpaceProfile *camera,
                          double goalRel) const;
+  // Detecta si el robot está atascado (manda moverse y no se mueve).
   bool updateStuckDetector(const Pose &pose, const WheelCommand &command, double timeS);
+  // Gira en el sitio con cuidado de no golpear con la trasera.
   WheelCommand safePivot(const SensorSnapshot &s, int direction, double speed);
+  // Recalcula el plan A* cada cierto tiempo o cuando el mapa cambia.
   void replanIfNeeded(const Pose &pose, bool force);
+  // Orientación hacia la que hay que ir: la del plan, la del punto meta o la recta.
   double currentGoalYaw(const Pose &pose) const;
 
   // Mapa y plan.

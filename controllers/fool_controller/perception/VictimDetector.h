@@ -34,14 +34,18 @@ inline bool isVictimGreen(int r, int g, int b, int minGreen = 0) {
   return g > 1.5 * r + 6 && g > 1.5 * b + 6;
 }
 
+// Una observación de víctima: dónde cree la cámara que está el centro del cilindro.
 struct VictimObservation {
   double x, z;   // centro estimado del cilindro (mundo)
   double weight;
   double range;  // distancia robot -> base vista (m)
 };
 
+// Lleva el registro de candidatas: fusiona observaciones cercanas y confirma
+// las que se ven en suficientes imágenes.
 class VictimTracker {
 public:
+  // Una posible víctima con su posición promedio y su estado.
   struct Candidate {
     double x = 0.0, z = 0.0;
     double weight = 0.0;
@@ -52,8 +56,11 @@ public:
     bool failed = false;  // intento de rescate fallido
   };
 
+  // Se llama al iniciar cada imagen nueva.
   void beginFrame() { ++_frame; }
 
+  // Agrega una observación: la une a la candidata más cercana o crea una nueva.
+  // Las observaciones cercanas son más precisas y mandan sobre las lejanas.
   void add(const VictimObservation &o, double robotX, double robotZ) {
     namespace v = robot_config::victims;
     if (std::fabs(o.x) > v::kMaxAbsXM || o.z < v::kMinZ || o.z > v::kMaxZ) return;
@@ -129,6 +136,7 @@ public:
       }
   }
 
+  // Confirmada = vista en al menos kConfirmFrames imágenes.
   bool confirmed(const Candidate &c) const {
     return c.frames >= robot_config::victims::kConfirmFrames;
   }
@@ -148,11 +156,13 @@ public:
     return best;
   }
 
+  // Cuántas candidatas ya fueron rescatadas.
   int rescuedCount() const {
     int n = 0;
     for (const Candidate &c : _candidates) n += c.rescued ? 1 : 0;
     return n;
   }
+  // Cuántas candidatas están confirmadas.
   int confirmedCount() const {
     int n = 0;
     for (const Candidate &c : _candidates) n += confirmed(c) ? 1 : 0;
@@ -166,10 +176,13 @@ private:
   int _frame = 0;
 };
 
+// Funciones que convierten lo que ve cada cámara en observaciones de víctimas.
 namespace victim_detector {
 
+// Radio del cilindro de la víctima.
 constexpr double kCylinderRadiusM = 0.30;
 
+// Convierte un punto del marco del robot (delante, izquierda) a coordenadas del mundo.
 inline void toWorld(const Pose &pose, double forward, double left, double &x, double &z) {
   const double fx = -std::sin(pose.yawRad), fz = -std::cos(pose.yawRad);
   const double lx = -std::cos(pose.yawRad), lz = std::sin(pose.yawRad);

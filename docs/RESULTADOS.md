@@ -1,22 +1,19 @@
 # Resultados
 
-Todos los tiempos son **segundos simulados**. Cada tabla indica de dónde sale: **Webots** (el simulador real del proyecto) o **simulador propio** (modelo cinemático 2D con
-las mismas proyecciones de cámara, usado para desarrollar sin tener que lanzar Webots; es optimista y **no sustituye** a Webots).
-La carpeta `results/` no se versiona (solo `.gitkeep`): los CSV y mapas se generan al ejecutar y son los de la copia de trabajo de quien ejecuta; las cifras de este
-documento son **resúmenes copiados de ejecuciones anteriores** y **no se pueden verificar con los archivos actuales del repositorio** (en la copia de trabajo
-solo se conservan las filas de la misión de s01 y s10 y los CSV de la última tanda de ida). Para comprobarlas hay que repetir las pruebas.
+Todos los tiempos son **segundos simulados** y todas las cifras salen de ejecuciones en **Webots**.
+La carpeta `results/` no se versiona (solo `.gitkeep`): los CSV y mapas se generan al ejecutar y son los de la copia de trabajo de quien ejecuta. La tabla de la misión
+completa (sección 3) sale de `results/mission_results.csv` de la última tanda; las de la ida (secciones 1 y 2) son **resúmenes copiados de ejecuciones anteriores** y
+no se pueden verificar con los archivos actuales. Para comprobarlas hay que repetir las pruebas.
 
 ## Qué está validado
 
-| Prueba | Fuente | Estado |
-|---|---|---|
-| Ida con mapa + esférica + cámara, 10 mundos | Webots | **10/10** (tabla 1) |
-| Ida sin esférica (solo IR + cámara), 10 mundos | Webots | Hecha antes de la esférica (tabla 2, histórica) |
-| **Misión completa** (ida + víctimas + vuelta) | Webots | **2 de 10 mundos** (s01 y s10): 2/2 víctimas y vuelta (tabla 3) |
-| Misión completa, 10 mundos y poca luz | Simulador propio | 10/10 con 2/2 víctimas (tabla 4) |
-| Misión completa, 10 mundos | Webots | **Pendiente** (paso 5) |
+| Prueba | Estado |
+|---|---|
+| Ida con mapa + esférica + cámara, 10 mundos | **10/10** (tabla 1) |
+| Ida sin esférica (solo IR + cámara), 10 mundos | Hecha antes de la esférica (tabla 2, histórica) |
+| **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 vueltas** y **17/20 víctimas** rescatadas (tabla 3) |
 
-## 1. Ida en Webots (paso 2), versión actual
+## 1. Ida en Webots, versión actual
 
 Configuración: cámara frontal + mapa + A\* + cámara esférica en el mapa, valores por defecto, un intento por mundo, modo `navigate`.
 Origen: `results/outbound_results.csv` (filas `sphere`).
@@ -39,7 +36,7 @@ Control con `nosphere` (mismos valores, sin la esférica): s03 181,6 s y s07 158
 
 ## 2. Ida en Webots sin cámara esférica (histórica)
 
-Versión anterior (cámara frontal + mapa solo con IR). Se conserva para la comparación en el informe; el archivo CSV original de esa serie se apartó al cambiar las columnas
+Versión anterior (cámara frontal + mapa solo con IR). Se conserva como referencia para comparar; el archivo CSV original de esa serie se apartó al cambiar las columnas
 (`outbound_results_old_<fecha>.csv`) y puede no estar en tu copia, por lo que estas cifras ya no son reproducibles solo con los archivos actuales.
 
 | Mundo | s01 | s02 | s03 | s04 | s05 | s06 | s07 | s08 | s09 | s10 |
@@ -49,43 +46,41 @@ Versión anterior (cámara frontal + mapa solo con IR). Se conserva para la comp
 
 Media 103,7 s. Sin memoria (Bug puro) fallaban los mundos 03, 05, 07 y 09 (callejones sin salida).
 
-## 3. Misión completa en Webots (pasos 3 y 4)
+## 3. Misión completa en Webots
 
 Modo `mission` (predeterminado), un intento por mundo. Origen: `results/mission_results.csv`.
 
 | Mundo | Inicio (x, z) | Vuelta ok | Víctimas | Total (s) | Ida (s) | Víctima 1 (s) | Víctima 2 (s) | Vuelta (s) | Dist. final a víctimas (m) | Líneas de vuelta | Casi-contactos |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | s01 | (3,00, −9,00) | sí | 2/2 | 98,5 | 33,2 | 42,9 | 63,3 | 35,2 | 0,85 / 0,84 | 7 | 2 |
+| s02 | (0,00, −9,05) | sí | 2/2 | 134,0 | 67,4 | 74,5 | 90,4 | 43,5 | 0,85 / 0,85 | 7 | 17 |
+| s03 | (0,00, −9,05) | sí | 0/2 | 236,0 | 186,5 | — | — | 49,5 | — / — | 7 | 143 |
+| s04 | (0,00, −9,05) | sí | 2/2 | 96,1 | 41,2 | 50,3 | 63,0 | 33,1 | 0,70 / 0,85 | 7 | 7 |
+| s05 | (0,00, −9,05) | sí | 2/2 | 148,2 | 65,4 | 74,6 | 106,7 | 41,5 | 0,85 / 0,85 | 7 | 3 |
+| s06 | (0,00, −9,05) | sí | 2/2 | 135,8 | 63,6 | 72,5 | 100,9 | 34,9 | 0,85 / 0,85 | 7 | 21 |
+| s07 | (0,00, −9,05) | sí | 2/2 | 123,2 | 54,9 | 61,8 | 84,3 | 38,9 | 0,70 / 0,85 | 7 | 19 |
+| s08 | (0,00, −9,05) | sí | 2/2 | 110,6 | 49,7 | 60,3 | 76,0 | 34,6 | 0,85 / 0,85 | 7 | 0 |
+| s09 | (0,00, −9,05) | sí | 1/2 | 106,0 | 39,6 | 55,7 | — | 30,7 | 0,85 / — | 7 | 2 |
 | s10 | (0,00, −9,05) | sí | 2/2 | 118,7 | 65,5 | 75,4 | 83,2 | 35,5 | 0,85 / 0,85 | 7 | 19 |
+
+Resumen: vuelta completada en 10/10 · 17/20 víctimas (2/2 en 8 mundos, 1/2 en s09, 0/2 en s03) · tiempo total medio 130,7 s (mín. 96,1 s en s04, máx. 236,0 s en s03).
 
 La distancia final es la **estimada** por el controlador entre el robot y el centro de la víctima al parar (objetivo: < 1 m); no se ha contrastado con la posición real de las
 víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques confirmados.
 
-## 4. Misión completa en el simulador propio
+## Lectura de los resultados
 
-Salida en (0, −9,05) mirando a +Z, luz normal. Los 10 mundos terminan con **2/2 víctimas** y la vuelta completada.
-
-| Mundo | 01 | 02 | 03 | 04 | 05 | 06 | 07 | 08 | 09 | 10 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Total (s) | 119,2 | 126,5 | 139,3 | 98,5 | 169,6 | 128,0 | 137,4 | 126,8 | 126,2 | 117,6 |
-| Ida (s) | 44,8 | 59,4 | 59,3 | 40,1 | 82,0 | 52,5 | 60,5 | 61,2 | 40,0 | 55,1 |
-| Vuelta (s) | 43,3 | 44,5 | 52,2 | 38,2 | 49,0 | 39,3 | 43,0 | 40,3 | 39,1 | 42,8 |
-
-Otras condiciones (también 2/2): luz al 30 % en s01, s03, s05, s07, s09 (159–198 s) y otras poses de salida en s02, s03, s05, s06, s08, s09. Error de localización de las víctimas ≈ 5 cm en el simulador.
-Con luz al 30 % y niebla (s07) el tiempo de ida llegó a 118 s y, en versiones anteriores del código, la regla de tiempo dejaba una víctima sin rescatar.
-Estos valores tienden a ser **más lentos** que en Webots (p. ej. s01: 119,2 s frente a 98,5 s) y no recogen el ruido real de los sensores.
-
-### Lectura de los resultados
-
-- **Tiempo:** crece con los obstáculos rodeados en la ida; la vuelta es parecida entre mundos (35–52 s) porque el mapa ya está construido y el A\* prefiere lo recorrido.
-- **Margen:** el peor caso en Webots con misión completa (s10, 118,7 s) deja 121 s sobre el límite de 240 s. s03 y s07 son los mundos donde habría que vigilar el tiempo.
+- **Tiempo:** crece con los obstáculos rodeados en la ida; la vuelta es parecida entre mundos (31–50 s) porque el mapa ya está construido y el A\* prefiere lo recorrido.
+- **Margen:** s03 es el caso crítico: la ida tardó 186,5 s, no se rescató ninguna víctima, el total fue 236,0 s y quedaron solo 4 s sobre el límite de 240 s; además la esférica
+  se marcó utilizable 0 % del tiempo y hubo 143 casi-contactos. En el resto de mundos el margen es de al menos 91 s.
+- **s09:** se rescató 1/2 víctimas; el tiempo total (106,0 s) deja margen, así que el fallo está en la búsqueda o la detección de la segunda, no en el reloj.
 - **Casi-contactos:** cuentan episodios con algún IR < 3 cm o saturado. `min_ir_m` rondó 0,10 m, así que reflejan la bandera de saturación y no un roce confirmado.
   Si hubo colisiones hay que revisarlo visualmente en Webots.
 - **Frenos de emergencia = 0** en todas las pruebas.
 
 ## Qué no cubren estos datos
 
-- La misión completa solo se ha ejecutado en Webots en s01 y s10, con un intento cada una; faltan los otros ocho mundos y la variación entre ejecuciones y salidas.
+- La misión completa se ejecutó una vez por mundo; falta medir la variación entre ejecuciones y con otras poses de salida.
 - No se ha medido la distancia real a las víctimas (solo la estimada) ni las colisiones.
 - No hay todavía comparación `nocam`/`nomap` con la misión completa, ni pruebas con GPS cuantizado (pendiente conocido).
 - El tiempo es simulado, no tiempo real.
@@ -147,12 +142,12 @@ Dibujo de 100 × 200 caracteres (10 cm por carácter), con **arriba = +z** (víc
 
 Si el archivo se llama `map_s??_...`, el controlador no pudo detectar el mundo; usar `tag=sNN` en `controllerArgs`. Cada ejecución del mismo mundo y modo sobrescribe su mapa.
 
-## Pendiente para la tabla final
+## Pendiente
 
 | Prueba | Estado |
 |---|---|
 | Ida con cámara + mapa + esférica, 10 mundos | Hecho (tabla 1) |
-| Ida sin cámara (`nocam`) y sin mapa (`nomap`), 10 mundos | Pendiente (comparación para el informe) |
-| Misión completa en Webots, 10 mundos | Pendiente: hechos s01 y s10 |
+| Ida sin cámara (`nocam`) y sin mapa (`nomap`), 10 mundos | Pendiente (comparación) |
+| Misión completa en Webots, 10 mundos | Hecha (tabla 3); pendiente revisar s03 (0/2) y s09 (1/2) |
 | Medir colisiones y distancia real a las víctimas | Pendiente |
 | Evaluación con GPS cuantizado | Pendiente |
