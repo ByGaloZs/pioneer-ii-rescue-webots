@@ -34,7 +34,7 @@ def read_frame(path):
             lines = f.read().split("\n")
     except OSError:
         return None
-    frame = {"t": 0.0, "state": "?", "x": 0.0, "z": 0.0, "yaw": 0.0, "goalz": 8.6, "plan": [], "rows": []}
+    frame = {"t": 0.0, "state": "?", "x": 0.0, "z": 0.0, "yaw": 0.0, "goalz": 8.6, "plan": [], "victims": [], "rows": []}
     try:
         i = 0
         while i < len(lines) and lines[i] != "grid":
@@ -47,6 +47,8 @@ def read_frame(path):
                 frame["x"], frame["z"], frame["yaw"] = (float(v) for v in value.split())
             elif key == "goalz":
                 frame["goalz"] = float(value)
+            elif key == "victims":
+                frame["victims"] = [tuple(float(c) for c in v.split(",")) for v in value.split() if v.count(",") == 2]
             elif key == "plan":
                 frame["plan"] = [tuple(float(c) for c in p.split(",")) for p in value.split() if "," in p]
             i += 1
@@ -121,6 +123,8 @@ def run_matplotlib(args, mask):
                       extent=(X_MIN, X_MAX, Z_MIN, Z_MAX), interpolation="nearest")
     plan_line, = ax.plot([], [], "-", color="#2e9e44", lw=1.8, label="plan A*")
     robot_dot, = ax.plot([], [], "o", color="#d62828", ms=8)
+    victim_dots, = ax.plot([], [], "o", color="#2dbd3a", mec="k", ms=11, ls="none", label="víctimas")
+    rescued_dots, = ax.plot([], [], "P", color="#2dbd3a", mec="k", ms=12, ls="none")
     arrow = ax.annotate("", xy=(0, 0), xytext=(0, 0), arrowprops=dict(arrowstyle="-|>", color="#d62828", lw=2))
     goal_line = ax.axhline(8.6, color="#f4b400", lw=1.5, ls="--")
     ax.set_xlabel("x (m)")
@@ -151,6 +155,10 @@ def run_matplotlib(args, mask):
                 else:
                     plan_line.set_data([], [])
                 robot_dot.set_data([frame["x"]], [frame["z"]])
+                pend = [v for v in frame["victims"] if v[2] < 2]
+                done = [v for v in frame["victims"] if v[2] >= 2]
+                victim_dots.set_data([v[0] for v in pend], [v[1] for v in pend])
+                rescued_dots.set_data([v[0] for v in done], [v[1] for v in done])
                 dx, dz = heading_vector(frame["yaw"])
                 arrow.xy = (frame["x"] + 0.7 * dx, frame["z"] + 0.7 * dz)
                 arrow.set_position((frame["x"], frame["z"]))
@@ -212,6 +220,8 @@ def run_terminal(args, mask):
 
                 for px, pz in frame["plan"]:
                     put(px, pz, "*")
+                for vx, vz, vs in frame.get("victims", []):
+                    put(vx, vz, "V" if vs >= 2 else "v")
                 put(frame["x"], frame["z"], "R")
                 sys.stdout.write("\x1b[2J\x1b[H")
                 print("t=%.1f s  %s  pos=(%.2f, %.2f)   # pared  . libre  o recorrido  * plan  R robot%s"

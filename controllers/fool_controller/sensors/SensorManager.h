@@ -30,6 +30,9 @@ public:
   // Cámara frontal: se activa solo si se usa (renderizarla cuesta tiempo).
   webots::Camera *enableFrontCamera();
   webots::Camera *frontCamera() const { return _frontCamera; }
+  // Cámara esférica (360°, mira hacia abajo): se usa para el mapa, la detección de víctimas y las capturas.
+  webots::Camera *enableSphericalCamera();
+  webots::Camera *sphericalCamera() const { return _sphericalCamera; }
 
 private:
   double filteredResponse(int index, double rawResponse);
@@ -43,6 +46,7 @@ private:
   std::array<webots::DistanceSensor *, robot_config::kDistanceSensorCount> _distanceSensors;
   std::array<std::deque<double>, robot_config::kDistanceSensorCount> _responseHistory;
   webots::Camera *_frontCamera = nullptr;
+  webots::Camera *_sphericalCamera = nullptr;
   bool _initialized;
 };
 

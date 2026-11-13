@@ -33,6 +33,12 @@ public:
 
   // Meta: la línea z = zTarget. La dirección se deduce de la posición actual.
   void setGoalLine(double zTarget, const Pose &pose);
+  // Meta puntual: llegar a <= radiusM del punto (x, z) (víctimas).
+  void setGoalPoint(double x, double z, double radiusM, const Pose &pose);
+  // Mover la meta puntual (la estimación mejora) sin reiniciar el estado.
+  void moveGoalPoint(double x, double z, const Pose &pose);
+  // En la vuelta, el planificador prefiere lo ya recorrido.
+  void setPreferVisited(bool prefer) { _planner.setPreferVisited(prefer); }
   // Mapa construido fuera (misión). nullptr: Bug puro sin memoria.
   void setMap(const OccupancyGrid *grid) { _grid = grid; }
 
@@ -79,6 +85,8 @@ private:
 
   State _state = State::kAlign;
   double _zTarget = 0.0;
+  bool _pointGoal = false;
+  double _gx = 0.0, _gz = 0.0, _gRadius = 0.0;
   double _goalYaw = 0.0;
   double _direction = 1.0;  // +1 hacia +z, -1 hacia -z
 

@@ -4,7 +4,7 @@ Todos los parámetros del robot están en un único archivo. Esta guía explica 
 Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m/s). Tras modificar el archivo hay que recompilar.
 
 > **Regla de oro:** los valores de cinemática, brújula e IR salen de la calibración (ver [CALIBRACION.md](CALIBRACION.md)).
-> No los cambies a mano sin volver a ejecutar `calibrate`. Los de `nav`, `mapping` y `camera` sí son ajustes de comportamiento.
+> No los cambies a mano sin volver a ejecutar `calibrate`. Los de `nav`, `mapping`, `camera`, `victims` y `mission` sí son ajustes de comportamiento.
 
 ## Dispositivos
 
@@ -14,7 +14,7 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 | `kLeftEncoderName` / `kRightEncoderName` | `left wheel sensor` / `right wheel sensor` | Encoders |
 | `kCompassName`, `kGpsName` | `compass`, `gps` | Orientación y posición |
 | `kFrontCameraName` | `camera_f` | Cámara frontal (la usa la navegación) |
-| `kSphericalCameraName` | `camera_s` | Cámara esférica (reservada para la fase de víctimas) |
+| `kSphericalCameraName` | `camera_s` | Cámara esférica (mapa y detección de víctimas) |
 | `kDistanceSensorCount` | 16 | Infrarrojos `ds0`…`ds15` |
 
 ## Cinemática diferencial
@@ -30,7 +30,7 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 | Constante | Valor | Notas |
 |---|---|---|
 | `kCompassYawOffsetRad` | 0,0 | Desfase brújula ↔ dirección de avance del GPS (medido 0,00°). Si saliera invertido, la calibración recomienda `π` |
-| `kUseGpsForPosition` | `true` | `false` → la posición sale solo de la odometría (para una evaluación con GPS cuantizado a 3 m) |
+| `kUseGpsForPosition` | `true` | `false` → la posición sale solo de la odometría (para una evaluación con GPS cuantizado a 3 m). **Pendiente de decidir**: los mundos usan `resolution -1` y la evaluación podría no hacerlo |
 
 ## Infrarrojos
 
@@ -43,7 +43,7 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 
 | Grupo | Constantes | Efecto |
 |---|---|---|
-| Meta y tiempo | `kOutboundGoalZ` 8,6; `kOutboundDoneZ` 8,2; `kMissionTimeLimitS` 240 | La meta del plan está más allá de la línea amarilla (z = 8) para que el robot la cruce; la prueba termina con éxito en z ≥ 8,2 o falla a los 240 s |
+| Meta y tiempo | `kOutboundGoalZ` 8,4; `kOutboundDoneZ` 8,2; `kMissionTimeLimitS` 240 | La meta del plan está más allá de la línea amarilla (z = 8) para que el robot la cruce; la ida termina en z ≥ 8,2 y la misión falla a los 240 s |
 | Alineación | `kAlignAngleRad` 1,05 (60°); `kHeadingGain` 4,0; `kMaxHeadingCorrection` 2,0 | Con error > 60° gira en el sitio; si no, corrige el rumbo con ganancia proporcional limitada |
 | Velocidades | `kCruiseSpeedNoCamera` 4,0; `kNearObstacleSpeed` 2,5; `kCameraMinSpeed` 2,5; `kCameraMaxSpeed` 8,0 | Crucero sin cámara; límite cuando un IR delantero detecta; rango con cámara |
 | Cámara | `kCameraSlowClearanceM` 0,8; `kCameraFastClearanceM` 2,5; `kCameraSearchAngleRad` 0,35; `kCameraNeededClearanceM` 2,0; `kRobotHalfWidthM` 0,30 | Espacio libre para ir lento/rápido; abanico de búsqueda de ±20°; espacio libre que debe tener un rumbo; semiancho del pasillo (con margen) |
@@ -65,6 +65,18 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 | Seguimiento del plan | `kLookaheadM` 0,8; `kReplanPeriodS` 0,3; `kReplanMinPeriodS` 0,1 | Punto de mira y frecuencia de replanificación |
 | Callejones | `kPlanBackwardRad` 2,36; `kPlanBackwardTimeS` 1,0; `kPlanLeaveAfterS` 1,5 | Si el plan pide ir atrás > 135° durante 1 s se deja la pared y se da media vuelta; con plan se puede soltar la pared tras 1,5 s |
 
+### Cámara esférica en el mapa (`mapping::kSphere*`)
+
+| Constante | Valor | Efecto |
+|---|---|---|
+| `kSphereMinRangeM` / `kSphereMaxRangeM` | 0,50 / 1,60 | Anillo del suelo que se explora (por dentro tapa el chasis; por fuera cada píxel son > 10 cm) |
+| `kSphereRangeStepM`, `kSphereRayStepDeg` | 0,05, 4,0 | Paso radial y angular (90 rayos) |
+| `kSphereMinFloorRun` | 3 | Muestras de suelo antes de aceptar una pared |
+| `kSphereHitNear` / `kSphereHitFar` | 4 / 2 | Evidencia por impacto (≤ / > 1 m) |
+| `kSphereMinBrightness` | 25 | Suelo más oscuro (0–255): la imagen se descarta (por debajo aparecían paredes falsas) |
+| `kSphereEveryNSteps` | 2 | Procesar una de cada N imágenes |
+| `kReturnUnvisitedCostM` | 0,06 | Vuelta: coste extra por celda no recorrida (prefiere lo ya andado) |
+
 Ajustes típicos: **más margen a las paredes** → subir `kLethalRadiusM` (cuidado: pasos estrechos pueden quedar prohibidos); **menos repetición de zonas** → subir `kVisitCostM`.
 
 ## Cámara (`camera::`)
@@ -80,12 +92,29 @@ Ajustes típicos: **más margen a las paredes** → subir `kLethalRadiusM` (cuid
 Si un mundo nuevo es muy oscuro y la cámara se desactiva demasiado (`cam_valid_pct` bajo), bajar `kMinFloorBrightness` con cuidado: con poca luz el ruido produce
 falsos obstáculos.
 
+## Víctimas y misión (`victims::`, `mission::`)
+
+| Grupo | Constantes | Efecto |
+|---|---|---|
+| Región y fusión | `kMaxAbsXM` 4,9; `kMinZ` 5,0; `kMaxZ` 9,9; `kMergeRadiusM` 0,5; `kDuplicateRadiusM` 0,45; `kShadowRadiusM` 1,25 | Dónde se aceptan víctimas; observaciones/candidatas más cerca que esto son la misma; radio en el que una candidata nueva "detrás" de otra ya vista de cerca se ignora |
+| Confirmación | `kConfirmFrames` 5 | Imágenes necesarias para confirmar |
+| Pesos y rangos | `kFrontWeight` 20; `kSphereWeight` 6 (peso = k / distancia³); `kFrontMinRangeM` 1,0; `kFrontMaxRangeM` 6,0; `kSphereMinRangeM` 0,7; `kSphereMaxRangeM` 3,0; `kSphereMinPixels` 4 | Rango configurado en que cada cámara aporta observaciones (la precisión real depende de la distancia y debe validarse en Webots) |
+| Observación cercana | `kCloseRangeM` 1,7; `kCloseBlend` 0,35; `kCloseGateM` 0,35; `kCloseHoldFrames` 150; `kMaxWeight` 25 | Las observaciones cercanas corrigen la estimación y mandan sobre las lejanas |
+| Color | `kMinGreen` 12; `kFloorGreenFactor` 1,15 | Verde mínimo absoluto y relativo al brillo del suelo |
+| Aproximación | `kApproachRadiusM` 1,15; `kStopDistanceM` 0,85; `kTooCloseM` 0,70 | A* hasta 1,15 m; parada final a 0,85 m del centro (enunciado: < 1 m); retrocede si empieza más cerca |
+| Giro y tiempos | `kSpinSpeed` 2,8; `kSpinTargetRad` 6,40; `kSpinTimeoutS` 8; `kGotoTimeoutS` 45; `kApproachTimeoutS` 15 | Giro de 360° (+ margen) y abandono por tiempo |
+| Búsqueda | `kSearchZ` 8,9; `kSearchX` 3,2; `kSearchLegTimeoutS` 30; `kSearchWaypointRadiusM` 0,5 | Pasillo de barrido del fondo |
+| Vuelta (`mission::`) | `kReturnGoalZ` −8,6; `kReturnDoneZ` −8,2; `kReturnReserveFactor` 0,55; `kReturnReserveFixedS` 12; `kReturnSafetyMarginS` 12 | Meta y fin de la vuelta; se deja de buscar si `tiempo + 0,55 × tiempo de ida + 12 s + 12 s de margen > 240 s` |
+
 ## Modo de arranque
 
 | Constante | Valor | Equivalente en `controllerArgs` |
 |---|---|---|
-| `kStartupMode` | `kNavigate` | `calibrate`, `monitor`, `navigate` |
+| `kStartupMode` | `kMission` | `mission` (predeterminado), `navigate`, `calibrate`, `monitor`, `capture` |
 | `kUseCameraByDefault` | `true` | `nocam` / `cam` |
 | `kUseMapByDefault` | `true` | `nomap` / `map` |
+| `kUseSphereByDefault` | `true` | `nosphere` / `sphere` (solo con mapa en `navigate`; la misión la usa también para las víctimas) |
+| `kLiveMapByDefault` | `true` | `nolive` / `live` |
+| `kLiveMapPeriodS` / `kCapturePeriodS` | 0,5 / 2,0 | Periodo del volcado del mapa / de las capturas (`snap`, `capture`) |
 
-`controllerArgs` tiene prioridad sobre estos valores y no requiere recompilar.
+`controllerArgs` tiene prioridad sobre estos valores y no requiere recompilar. Además `tag=XX` etiqueta la prueba (si falta se detecta el mundo) y `snap` guarda capturas al navegar.

@@ -1,12 +1,19 @@
 // Controlador del Pioneer II para el trabajo final de Robótica.
 //
 // Modos (RobotConfig.h::kStartupMode o controllerArgs del robot en el .wbt):
+//   mission    (por defecto) misión completa: ida, buscar y rescatar las 2 víctimas
+//              (parar < 1 m, giro de 360°, mensaje) y volver a la salida. Acepta las
+//              mismas opciones que navigate (nocam, nomap, nosphere, nolive, tag=XX).
 //   navigate   paso 2: ir hasta la línea amarilla del fondo y medir el resultado.
 //              Añadir "nocam" para navegar solo con infrarrojos, "nomap" para
-//              desactivar el mapa + A* (Bug puro), "nolive" para no volcar el mapa
+//              desactivar el mapa + A* (Bug puro), "nosphere" para no usar la
+//              cámara esférica en el mapa, "nolive" para no volcar el mapa
 //              en directo (results/live_map.txt, ver tools/live_map.py) y "tag=XX" para etiquetar a mano
 //              (opcional: si no se pone, se detecta el mundo).
 //   calibrate  paso 1: rutina que mide GPS, brújula, encoders e IR.
+//   capture    robot parado: guarda imágenes de las dos cámaras con su pose en
+//              results/captures/ cada vez que lo arrastras a otro sitio. Con
+//              "snap" también se guardan al navegar (cada 2 s, solo si se ha movido).
 //   monitor    robot parado; imprime cada segundo pose y sectores de distancia.
 
 #include <webots/Robot.hpp>
@@ -19,11 +26,14 @@
 #include <string>
 
 #include "calibration/SensorCalibration.h"
+#include "capture/SnapshotRecorder.h"
+#include "perception/SphericalView.h"
 #include "common/Angles.h"
 #include "config/RobotConfig.h"
 #include "control/MotorController.h"
 #include "localization/Localizer.h"
 #include "mission/OutboundRun.h"
+#include "mission/RescueMission.h"
 #include "perception/FloorSegmenter.h"
 #include "sensors/SensorManager.h"
 
@@ -34,6 +44,8 @@ struct Options {
   bool useCamera = robot_config::kUseCameraByDefault;
   bool useMap = robot_config::kUseMapByDefault;
   bool liveMap = robot_config::kLiveMapByDefault;
+  bool useSphere = robot_config::kUseSphereByDefault;
+  bool snap = false;  // guardar capturas de las cámaras también al navegar
   std::string tag;
 };
 
@@ -43,7 +55,12 @@ Options parseOptions(int argc, char **argv) {
     const std::string arg = argv[i];
     if (arg == "calibrate") options.mode = robot_config::StartupMode::kCalibrate;
     else if (arg == "monitor") options.mode = robot_config::StartupMode::kMonitor;
+    else if (arg == "mission") options.mode = robot_config::StartupMode::kMission;
     else if (arg == "navigate") options.mode = robot_config::StartupMode::kNavigate;
+    else if (arg == "capture") options.mode = robot_config::StartupMode::kCapture;
+    else if (arg == "snap") options.snap = true;
+    else if (arg == "nosphere") options.useSphere = false;
+    else if (arg == "sphere") options.useSphere = true;
     else if (arg == "nocam") options.useCamera = false;
     else if (arg == "cam") options.useCamera = true;
     else if (arg == "nomap") options.useMap = false;
@@ -102,11 +119,18 @@ int main(int argc, char **argv) {
   sensors.printDistanceSensorProfiles();
 
   const Options options = parseOptions(argc, argv);
-  const bool navigate = options.mode == robot_config::StartupMode::kNavigate;
+  std::cout << "[STARTUP] controllerArgs recibidos (" << argc - 1 << "):";
+  for (int i = 1; i < argc; ++i) std::cout << " [" << argv[i] << "]";
+  std::cout << std::endl;
+  const bool mission = options.mode == robot_config::StartupMode::kMission;
+  const bool navigate = options.mode == robot_config::StartupMode::kNavigate || mission;
+  const bool capture = options.mode == robot_config::StartupMode::kCapture;
   std::cout << "[STARTUP] Modo: "
-            << (navigate ? "navegación (ida)"
-                         : options.mode == robot_config::StartupMode::kCalibrate ? "calibración"
-                                                                                  : "monitor")
+            << (mission ? "misión completa (ida, víctimas, vuelta)"
+                : navigate ? "navegación (ida)"
+                : options.mode == robot_config::StartupMode::kCalibrate ? "calibración"
+                : capture ? "captura de cámaras (robot parado: arrástralo)"
+                          : "monitor")
             << std::endl;
 
   // Cámara frontal solo si se navega con ella.
@@ -119,9 +143,32 @@ int main(int argc, char **argv) {
                                          frontCamera->getFov()));
   }
 
+  // Capturas de las dos cámaras con la pose (modo "capture", o "snap" al navegar).
+  std::unique_ptr<SnapshotRecorder> recorder;
+  if (capture || (navigate && options.snap)) {
+    webots::Camera *front = frontCamera != nullptr ? frontCamera : sensors.enableFrontCamera();
+    webots::Camera *sphere = sensors.enableSphericalCamera();
+    recorder.reset(new SnapshotRecorder(front, sphere, robot_config::kCapturePeriodS,
+                                        /*onlyIfMoved=*/true));
+  }
+
+  // Cámara esférica para el mapa (solo al navegar con mapa).
+  webots::Camera *sphereCamera = nullptr;
+  if (navigate && options.useSphere && (options.useMap || mission)) {
+    sphereCamera = sensors.enableSphericalCamera();
+    if (sphereCamera != nullptr && !SphericalView::matches(sphereCamera->getWidth(),
+                                                          sphereCamera->getHeight(),
+                                                          sphereCamera->getFov())) {
+      std::cerr << "[SENSORS] La cámara esférica no tiene la geometría medida (160x160, 180°); "
+                   "no se usa para el mapa." << std::endl;
+      sphereCamera = nullptr;
+    }
+  }
+
   Localizer localizer;
   SensorCalibration calibration;
-  OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, options.tag);
+  RescueMission rescue(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
+  OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
   double nextStatusS = 0.0;
 
   while (robot.step(timeStep) != -1) {
@@ -130,6 +177,7 @@ int main(int argc, char **argv) {
 
     WheelCommand command = WheelCommand::stop();
     bool printNow = false;
+    if (recorder && localizer.initialized()) recorder->update(snapshot.timeS, localizer.pose());
     switch (options.mode) {
       case robot_config::StartupMode::kCalibrate:
         if (!calibration.finished()) command = calibration.step(snapshot, localizer);
@@ -138,10 +186,24 @@ int main(int argc, char **argv) {
       case robot_config::StartupMode::kMonitor:
         printNow = true;
         break;
+      case robot_config::StartupMode::kCapture:
+        break;  // robot parado; el recorder guarda una captura cada vez que se mueve
+      case robot_config::StartupMode::kMission: {
+        FreeSpaceProfile profile;
+        if (segmenter != nullptr) profile = segmenter->process(frontCamera->getImage());
+        command = rescue.step(snapshot, localizer, segmenter ? &profile : nullptr,
+                              sphereCamera ? sphereCamera->getImage() : nullptr, dtS);
+        if (!rescue.finished() && localizer.initialized() && snapshot.timeS >= nextStatusS) {
+          nextStatusS = snapshot.timeS + 1.0;
+          rescue.printStatus(snapshot, localizer);
+        }
+        break;
+      }
       case robot_config::StartupMode::kNavigate: {
         FreeSpaceProfile profile;
         if (segmenter != nullptr) profile = segmenter->process(frontCamera->getImage());
-        command = outbound.step(snapshot, localizer, segmenter ? &profile : nullptr, dtS);
+        command = outbound.step(snapshot, localizer, segmenter ? &profile : nullptr,
+                                sphereCamera ? sphereCamera->getImage() : nullptr, dtS);
         if (!outbound.finished() && localizer.initialized() && snapshot.timeS >= nextStatusS) {
           nextStatusS = snapshot.timeS + 1.0;
           outbound.printStatus(snapshot, localizer);

@@ -6,6 +6,7 @@
 #include "../control/SafetyGuard.h"
 #include "../localization/Localizer.h"
 #include "../mapping/OccupancyGrid.h"
+#include "../mapping/SphericalMapper.h"
 #include "../navigation/GoalNavigator.h"
 #include "../perception/FloorSegmenter.h"
 #include "../sensors/SensorSnapshot.h"
@@ -16,10 +17,12 @@
 // el mapa de ocupación final en results/map_<tag>_<cam|nocam>.txt.
 class OutboundRun {
 public:
-  OutboundRun(bool useCamera, bool useMap, bool liveMap, const std::string &tag);
+  OutboundRun(bool useCamera, bool useMap, bool liveMap, bool useSphere, const std::string &tag);
 
+  // sphereImage: imagen BGRA de la cámara esférica (o nullptr).
   WheelCommand step(const SensorSnapshot &snapshot, const Localizer &localizer,
-                    const FreeSpaceProfile *camera, double dtS);
+                    const FreeSpaceProfile *camera, const unsigned char *sphereImage,
+                    double dtS);
   bool finished() const { return _finished; }
   void printStatus(const SensorSnapshot &snapshot, const Localizer &localizer) const;
 
@@ -29,6 +32,12 @@ private:
   bool _useCamera;
   bool _useMap;
   bool _liveMap;
+  bool _useSphere;
+  SphericalMapper _sphereMapper;
+  int _sphereFrames = 0;
+  int _sphereValidFrames = 0;
+  int _sphereStep = 0;
+  bool _sphereLastOk = false;
   double _nextLiveS = 0.0;
   OccupancyGrid _grid;
   int _cameraFrames = 0;

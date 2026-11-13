@@ -28,7 +28,29 @@ class PathPlanner {
 public:
   using Point = std::pair<double, double>;  // (x, z)
 
+  // Meta: la línea z = zTarget (hacia +z si direction > 0, hacia -z si < 0).
   bool plan(const OccupancyGrid &grid, const Pose &pose, double zTarget, double direction) {
+    const double cell = OccupancyGrid::kCellM;
+    auto cellZ = [cell](int cz) { return OccupancyGrid::kMinZ + (cz + 0.5) * cell; };
+    return search(grid, pose,
+                  [=](int, int cz) { return (cellZ(cz) - zTarget) * direction >= 0.0; },
+                  [=](int, int cz) { return std::max(0.0, (zTarget - cellZ(cz)) * direction); });
+  }
+
+  // Meta: cualquier celda a <= radiusM del punto (gx, gz). Para ir hasta una víctima.
+  bool planPoint(const OccupancyGrid &grid, const Pose &pose, double gx, double gz,
+                 double radiusM) {
+    return search(grid, pose,
+                  [=](int cx, int cz) { return distanceTo(cx, cz, gx, gz) <= radiusM; },
+                  [=](int cx, int cz) { return std::max(0.0, distanceTo(cx, cz, gx, gz) - radiusM); });
+  }
+
+  // En la vuelta: preferir celdas ya recorridas (se sabe que el robot cabe).
+  void setPreferVisited(bool prefer) { _preferVisited = prefer; }
+
+  bool search(const OccupancyGrid &grid, const Pose &pose,
+              const std::function<bool(int, int)> &isGoal,
+              const std::function<double(int, int)> &heuristic) {
     namespace m = robot_config::mapping;
     constexpr int W = OccupancyGrid::kWidth, H = OccupancyGrid::kHeight;
     buildCostmap(grid);
@@ -42,15 +64,6 @@ public:
     const double cell = OccupancyGrid::kCellM;
     const int startFree = static_cast<int>(std::ceil(m::kStartEscapeRadiusM / cell));
 
-    auto isGoal = [&](int cz) {
-      const double z = OccupancyGrid::kMinZ + (cz + 0.5) * cell;
-      return (z - zTarget) * direction >= 0.0;
-    };
-    auto heuristic = [&](int cz) {
-      const double z = OccupancyGrid::kMinZ + (cz + 0.5) * cell;
-      return std::max(0.0, (zTarget - z) * direction);
-    };
-
     const float inf = std::numeric_limits<float>::infinity();
     std::vector<float> g(W * H, inf);
     std::vector<int> parent(W * H, -1);
@@ -58,7 +71,7 @@ public:
     using Entry = std::pair<float, int>;
     std::priority_queue<Entry, std::vector<Entry>, std::greater<Entry>> open;
     g[start] = 0.0f;
-    open.push({static_cast<float>(heuristic(sz)), start});
+    open.push({static_cast<float>(heuristic(sx, sz)), start});
 
     static const int kDx[8] = {1, -1, 0, 0, 1, 1, -1, -1};
     static const int kDz[8] = {0, 0, 1, -1, 1, -1, 1, -1};
@@ -69,7 +82,7 @@ public:
       if (closed[current]) continue;
       closed[current] = 1;
       const int cx = current % W, cz = current / W;
-      if (isGoal(cz) && !_lethal[current]) {
+      if (isGoal(cx, cz) && !_lethal[current]) {
         goal = current;
         break;
       }
@@ -88,7 +101,7 @@ public:
         if (g[current] + step < g[next]) {
           g[next] = g[current] + step;
           parent[next] = current;
-          open.push({g[next] + static_cast<float>(heuristic(nz)), next});
+          open.push({g[next] + static_cast<float>(heuristic(nx, nz)), next});
         }
       }
     }
@@ -142,6 +155,12 @@ public:
   }
 
 private:
+  static double distanceTo(int cx, int cz, double gx, double gz) {
+    double x, z;
+    OccupancyGrid::cellCenter(cx, cz, x, z);
+    return std::hypot(x - gx, z - gz);
+  }
+
   int closestIndex(const Pose &pose) const {
     // La ruta empieza en el robot: buscar el más cercano en el primer tramo.
     int best = 0;
@@ -196,7 +215,10 @@ private:
         const int i = OccupancyGrid::index(cx, cz);
         if (nearest[i] <= m::kLethalRadiusM) _lethal[i] = 1;
         double extra = m::kSoftCostM * std::max(0.0, 1.0 - nearest[i] / m::kSoftRadiusM);
-        extra += m::kVisitCostM * std::min(grid.visits(cx, cz), m::kMaxCountedVisits);
+        if (_preferVisited)
+          extra += grid.visits(cx, cz) > 0 ? 0.0 : m::kReturnUnvisitedCostM;
+        else
+          extra += m::kVisitCostM * std::min(grid.visits(cx, cz), m::kMaxCountedVisits);
         _extra[i] = static_cast<float>(extra);
       }
   }
@@ -206,6 +228,7 @@ private:
   std::vector<Point> _path;
   std::vector<double> _remainingAt;
   bool _valid = false;
+  bool _preferVisited = false;
   int _plans = 0;
 };
 

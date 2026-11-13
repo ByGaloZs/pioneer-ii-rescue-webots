@@ -1,6 +1,7 @@
-# Navegación de ida (paso 2)
+# Navegación y misión (pasos 2, 3 y 4)
 
-Cómo llega el robot a la línea amarilla del fondo en un recinto que no conoce. Para el resumen de módulos ver
+Cómo llega el robot a la línea amarilla del fondo en un recinto que no conoce y, después, cómo rescata a las víctimas y vuelve. Las secciones de la máquina de estados
+y del mapa describen la navegación (ida y vuelta); la sección «Misión completa» explica la secuencia. Para el resumen de módulos ver
 [ARQUITECTURA.md](ARQUITECTURA.md); los números citados aquí están en [CONFIGURACION.md](CONFIGURACION.md).
 
 ## Idea general
@@ -10,16 +11,17 @@ Hay tres capas que cooperan, de la más "inteligente" a la más reactiva:
 | Capa | Módulo | Qué aporta | Depende de la luz |
 |---|---|---|---|
 | Memoria + plan | `OccupancyGrid` + `PathPlanner` | Recuerda paredes y callejones; calcula el camino más corto conocido | No (solo IR + pose) |
-| Anticipación | `FloorSegmenter` | Ve huecos libres a varios metros y permite ir más rápido | Sí (se desactiva con poca luz) |
+| Anticipación | `FloorSegmenter` + `SphericalMapper` | Huecos libres a varios metros (frontal); paredes alrededor del robot a ~1,5 m (esférica) | Sí (se desactivan con poca luz) |
 | Reacción | IR en `GoalNavigator` + `SafetyGuard` | Rodea lo que aparece delante, evita roces, frena en emergencia | No |
 
-Si la capa de arriba falla (cámara oscura, plan no disponible), la de abajo sigue funcionando. Por eso el robot completó los
+Si la capa de arriba falla (cámara oscura, plan no disponible), la de abajo sigue funcionando. Por eso el robot completó la ida en los
 10 escenarios aunque dos son casi a oscuras (02 y 03) y varios tienen niebla (04–09).
 
 ## Dirección de la meta
 
 El navegador trabaja con un único dato: `goalRel`, el ángulo (rad) entre hacia dónde mira el robot y hacia dónde debe ir.
 - **Con mapa:** el rumbo hacia el punto de mira del plan A\* (`lookaheadYaw`, a ≤ 0,8 m sobre la ruta).
+- **Meta puntual** (víctimas, tramos de búsqueda): `setGoalPoint` planifica hasta celdas a ≤ r del punto; sin plan, rumbo recto al punto.
 - **Sin mapa (`nomap`):** recto hacia +Z (`yaw = π`).
 
 El progreso se mide como longitud restante del plan (con mapa) o `z` restante (sin mapa).
@@ -100,11 +102,29 @@ un giro lento de 1 s para no entrar en bucle.
 
 ## Mapa y plan
 
-- **Cada paso** `OutboundRun` llama a `OccupancyGrid::update` con la pose y los 16 IR (ver [ARQUITECTURA.md](ARQUITECTURA.md), sección 5).
+- **Cada paso** `RescueMission` (o `OutboundRun`) llama a `OccupancyGrid::update` con la pose y los 16 IR (ver [ARQUITECTURA.md](ARQUITECTURA.md), sección 5).
 - **Replanificación** (`replanIfNeeded`): cada 0,3 s, y además cuando el mapa cambia (una celda pasa a ocupada/libre), como máximo cada 0,1 s. En los resultados,
-  el número de replanificaciones (`replans`) va de ~210 a ~710 según el mundo.
+  el número de replanificaciones (`replans`) va de ~190 a ~500 según el mundo (ida en Webots, 10 mundos).
 - Al tocar un obstáculo se replanifica **de inmediato** para decidir por qué lado rodearlo.
 - Si no existe ningún camino (`plan=NO` en consola), el navegador vuelve temporalmente al comportamiento sin mapa (recto hacia +Z).
+
+- **Cámara esférica:** cada 2 pasos `SphericalMapper` añade evidencia de paredes a 0,5–1,6 m en 360°; se descarta con el suelo más oscuro de 25/255.
+- **Vuelta:** `setPreferVisited(true)` hace que las celdas recorridas cuesten menos que las no recorridas (0,06 m extra), así el A* tiende a repetir el camino ya andado.
+
+## Misión completa (`RescueMission`)
+
+```
+IDA ──z ≥ 8,2──► BUSCAR ──víctima confirmada──► IR_A_VICTIMA ──≤ 1,25 m──► ACERCAR ──≤ 0,85 m──► GIRO_360 ──► BUSCAR ... ──2 rescatadas / sin tiempo / sin víctimas──► VUELTA ──z ≤ −8,2──► FIN
+```
+
+- **Detección:** cada paso se alimentan las observaciones de la cámara frontal (base del bloque verde) y de la esférica (píxel verde más cercano por dirección) a un
+  `VictimTracker`. Una víctima se confirma con 5 imágenes; las observaciones cercanas (< 1,7 m) corrigen las lejanas. Detalle en [ARQUITECTURA.md](ARQUITECTURA.md), sección 4.
+- **Búsqueda:** si no hay víctima confirmada, barre el pasillo del fondo con tres tramos (a x = ±3,2 y x = 0, z = 8,9); cada tramo caduca a los 30 s.
+- **Aproximación:** A* hasta 1,15 m y avance directo hasta 0,85 m del centro de la víctima (retrocede si ya está a < 0,7 m); se abandona a los 45 s (ir) o 15 s (acercar).
+- **Giro y mensaje:** giro a la izquierda hasta acumular 6,40 rad (límite 8 s; si no se alcanza, la víctima **no** cuenta como rescatada y se marca fallida) e impresión de `[VICTIMA n] Víctima encontrada ... a d m del robot` y `... VICTIMA RESCATADA ...`.
+  Después la víctima se marca como obstáculo circular (0,3 m) en el mapa y no se vuelve a contar.
+- **Tiempo:** se deja de buscar si `tiempo + 0,55 × tiempo de ida + 12 s + 12 s de margen` supera 240 s; entonces se vuelve con las víctimas rescatadas. También se comprueba en `ACERCAR`: si aún está a ≥ 1 m de la víctima, se abandona y se vuelve (una vez a < 1 m se termina el giro, ~2,5 s).
+- **Vuelta:** `setGoalLine(−8,6)` con preferencia por lo recorrido; termina en z ≤ −8,2 (supuesto: simétrico a la ida; la línea amarilla de salida está en z = −8).
 
 ## Cámara en la navegación
 
@@ -114,7 +134,7 @@ tres funciones se omiten (en el mundo s03 la cámara fue válida solo el 85 % de
 
 ## Cómo depurar una ejecución
 
-La consola imprime cada segundo:
+En el modo `navigate` la consola imprime cada segundo:
 
 ```
 [NAV] t=57.0 FOLLOW_WALL_L pos=(0.31, 2.40) yaw=170 restante=6.1 libre_cam=1.9 luz=88 plan=ok ocupadas=412 F=0.15
@@ -131,4 +151,8 @@ La consola imprime cada segundo:
 | `plan` / `ocupadas` | si hay plan válido / celdas ocupadas en el mapa |
 | `F` | distancia del sector frontal (`--` si no detecta nada) |
 
-Para comparar enfoques, ejecutar el mismo mundo con `nocam` y con `nomap` y comparar las filas del CSV.
+En el modo `mission` la línea es `[MISION] t=… <fase> pos=(x, z) yaw=… victimas vistas=… rescatadas=… plan=ok restante=…`, donde `<fase>` es `IDA`, `BUSCAR`,
+`IR_A_VICTIMA`, `ACERCAR`, `GIRO_360` o `VUELTA`. Además se imprimen los eventos (`[MISION] Víctima confirmada…`, `[VICTIMA n] …`) y la lista de candidatas al terminar la ida.
+El visor `tools/live_map.py` marca las víctimas (círculo = vista, cruz = rescatada).
+
+Para comparar enfoques, ejecutar el mismo mundo con `nocam`, `nomap` o `nosphere` y comparar las filas del CSV.
