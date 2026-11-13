@@ -53,7 +53,9 @@ RelativeClass classifyRelative(int r, int g, int b, const FloorReference &floor)
   if (brightest < c::kUnknownBrightness) return RelativeClass::kUnknown;
   const double rr = std::max(1, r), bb = std::max(1, b);
   const double gr = g / rr, br = b / rr, gb = g / bb;
-  if (gr > c::kVictimRatio * floor.greenOverRed && gb > c::kVictimRatio * floor.greenOverBlue)
+  if (gr > c::kVictimRatio * floor.greenOverRed && gb > c::kVictimRatio * floor.greenOverBlue &&
+      g >= std::max(robot_config::victims::kMinGreen,
+                    static_cast<int>(robot_config::victims::kFloorGreenFactor * floor.brightness)))
     return RelativeClass::kVictim;
   if (gr > c::kObstacleRatio * floor.greenOverRed && br > c::kObstacleRatio * floor.blueOverRed)
     return RelativeClass::kObstacle;
@@ -98,16 +100,40 @@ FreeSpaceProfile FloorSegmenter::process(const unsigned char *image) const {
     floor.greenOverRed = floor.blueOverRed = floor.greenOverBlue = 1.0;
   profile.valid = true;
 
+  // Columnas consecutivas con víctima = una víctima. Se guarda el punto de la
+  // base más cercano al robot (la base del cilindro es lo único que está en el suelo).
+  std::vector<double> pendingForward, pendingLeft;
+  auto closeBlob = [&]() {
+    if (pendingForward.size() >= 2) {
+      size_t best = 0;
+      for (size_t i = 1; i < pendingForward.size(); ++i)
+        if (std::hypot(pendingForward[i], pendingLeft[i]) <
+            std::hypot(pendingForward[best], pendingLeft[best]))
+          best = i;
+      VictimBlob blob;
+      blob.forwardM = pendingForward[best];
+      blob.leftM = pendingLeft[best];
+      blob.columns = static_cast<int>(pendingForward.size());
+      profile.victims.push_back(blob);
+    }
+    pendingForward.clear();
+    pendingLeft.clear();
+  };
+
   // 2. Cada columna: de abajo hacia el horizonte hasta el primer no-suelo.
   for (int column = _columnStep / 2; column < _width; column += _columnStep) {
     int run = 0;
     int boundaryRow = -1;
+    RelativeClass boundaryType = RelativeClass::kFloor;
+    RelativeClass runType = RelativeClass::kFloor;
     for (int row = _height - 1; row > horizonRow; --row) {
       const unsigned char *pixel = image + 4 * (row * _width + column);  // BGRA
       const RelativeClass type = classifyRelative(pixel[2], pixel[1], pixel[0], floor);
       if (type == RelativeClass::kVictim) ++profile.victimPixels;
       if (type != RelativeClass::kFloor) {
+        if (run == 0) runType = type;
         if (++run >= kObstacleRunPx) {
+          boundaryType = runType;
           boundaryRow = row + kObstacleRunPx - 1;  // primera fila no-suelo
           break;
         }
@@ -119,12 +145,25 @@ FreeSpaceProfile FloorSegmenter::process(const unsigned char *image) const {
     point.closeObstacle = boundaryRow >= _height - 1;
     double cameraForward = boundaryRow < 0 ? kMaxRangeM : groundForwardM(boundaryRow);
     // Más allá del alcance de confianza (niebla, poca luz) no se asegura nada.
+    // Si el verde llega al borde inferior de la imagen, la base queda fuera de
+    // la imagen (< ~1 m): el punto no es la base, no sirve para localizarla.
+    point.victim = boundaryRow >= 0 && boundaryRow < _height - 4 &&
+                   boundaryType == RelativeClass::kVictim;
+    point.rawForwardM = cameraForward + kCameraForwardM;
     cameraForward = std::min(cameraForward, c::kTrustedRangeM);
     const double offsetPx = column + 0.5 - 0.5 * _width;
     point.forwardM = cameraForward + kCameraForwardM;
     point.leftM = -cameraForward * offsetPx / _focalPx;
+    if (point.victim) {  // punto real (sin recortar) para localizar la víctima
+      const double rawLeft = -(point.rawForwardM - kCameraForwardM) * offsetPx / _focalPx;
+      pendingForward.push_back(point.rawForwardM);
+      pendingLeft.push_back(rawLeft);
+    } else if (!pendingForward.empty()) {
+      closeBlob();
+    }
     profile.points.push_back(point);
   }
+  if (!pendingForward.empty()) closeBlob();
   return profile;
 }
 

@@ -1125,6 +1125,9 @@ Pioneer2 {
   translation 0 0 -9.05
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
+  controllerArgs [
+    "tag=04"
+  ]
   extensionSlot [
     Compass {
     }

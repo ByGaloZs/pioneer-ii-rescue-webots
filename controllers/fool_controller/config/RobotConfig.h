@@ -70,7 +70,7 @@ constexpr int kDistanceMedianWindow = 3;
 // Distancias IR medidas desde cada sensor (alcance real ~0.20 m).
 // ---------------------------------------------------------------------------
 namespace nav {
-constexpr double kOutboundGoalZ = 8.6;        // línea objetivo de la ida
+constexpr double kOutboundGoalZ = 8.4;        // línea objetivo de la ida
 constexpr double kOutboundDoneZ = 8.2;        // ida completada (línea amarilla en 8.0)
 constexpr double kMissionTimeLimitS = 240.0;
 
@@ -129,6 +129,7 @@ constexpr double kSoftRadiusM = 0.5;         // zona con coste extra junto a obs
 constexpr double kSoftCostM = 0.08;          // coste extra máximo por celda (m)
 constexpr double kVisitCostM = 0.04;         // coste extra por cada visita previa (m)
 constexpr int kMaxCountedVisits = 5;
+constexpr double kReturnUnvisitedCostM = 0.06; // vuelta: coste extra por celda NO recorrida
 constexpr double kStartEscapeRadiusM = 0.3;  // se permite salir de zona prohibida cerca del robot
 
 constexpr double kLookaheadM = 0.8;          // punto de mira sobre la ruta
@@ -137,7 +138,70 @@ constexpr double kReplanMinPeriodS = 0.1;    // y al cambiar el mapa, como mucho
 constexpr double kPlanBackwardRad = 2.36;    // ruta hacia atrás (>135°) rodeando ->
 constexpr double kPlanBackwardTimeS = 1.0;   //   durante 1 s: media vuelta
 constexpr double kPlanLeaveAfterS = 1.5;     // con plan, se puede soltar la pared tras 1.5 s
+
+// Cámara esférica -> mapa (mapping/SphericalMapper.h). Lanza rayos sobre el
+// suelo alrededor del robot (360°) y marca la pared donde el suelo gris pasa a
+// cian. Solo se confía hasta kSphereMaxRangeM: a más distancia cada píxel son
+// más de ~10 cm.
+constexpr double kSphereMinRangeM = 0.50;    // por dentro, el chasis tapa el suelo (zona ciega)
+constexpr double kSphereMaxRangeM = 1.60;
+constexpr double kSphereRangeStepM = 0.05;
+constexpr double kSphereRayStepDeg = 4.0;    // 90 rayos
+constexpr int kSphereMinFloorRun = 3;        // muestras de suelo antes de aceptar una pared
+constexpr int kSphereHitNear = 4;            // evidencia por impacto (<= 1 m)
+constexpr int kSphereHitFar = 2;             // evidencia por impacto (> 1 m)
+constexpr int kSphereMinBrightness = 25;     // suelo más oscuro (0-255): imagen no fiable
+                                             // (probado: por debajo aparecen paredes falsas)
+constexpr int kSphereEveryNSteps = 2;        // procesar una de cada N imágenes
 }  // namespace mapping
+
+// ---------------------------------------------------------------------------
+// Víctimas y misión completa (paso 3: vuelta, paso 4: rescate).
+// ---------------------------------------------------------------------------
+namespace victims {
+constexpr double kMaxAbsXM = 4.9;            // región donde se aceptan víctimas
+constexpr double kMinZ = 5.0;
+constexpr double kMaxZ = 9.9;
+constexpr double kMergeRadiusM = 0.5;        // observaciones más cerca = la misma víctima
+constexpr double kDuplicateRadiusM = 0.45;    // dos candidatas más juntas = la misma
+constexpr double kShadowRadiusM = 1.25;       // no crear candidatas nuevas tan cerca de una víctima ya vista de cerca
+constexpr int kConfirmFrames = 5;            // imágenes necesarias para confirmar
+constexpr double kMaxWeight = 25.0;
+constexpr double kFrontWeight = 20.0;        // peso = k / distancia^3 (error crece con la distancia)
+constexpr double kSphereWeight = 6.0;
+constexpr double kCloseRangeM = 1.7;         // observación "cercana": precisa, manda
+constexpr double kCloseBlend = 0.35;
+constexpr double kCloseGateM = 0.35;
+constexpr int kCloseHoldFrames = 150;        // tras una cercana, ignorar las lejanas ~5 s
+constexpr double kFrontMinRangeM = 1.0;
+constexpr double kFrontMaxRangeM = 6.0;
+constexpr double kSphereMaxRangeM = 3.0;
+constexpr int kSphereMinPixels = 4;
+constexpr double kSphereMinRangeM = 0.7;     // más cerca la base cae en la zona ciega: sesgada
+constexpr int kMinGreen = 12;                // verde mínimo absoluto (0-255) de un píxel de víctima
+constexpr double kFloorGreenFactor = 1.15;   // y al menos esto por el brillo del suelo
+
+constexpr double kApproachRadiusM = 1.15;    // el planificador deja al robot a esta distancia
+constexpr double kStopDistanceM = 0.85;      // parada final (centro robot - centro víctima); enunciado: < 1 m
+constexpr double kTooCloseM = 0.70;          // más cerca: retroceder antes de girar
+constexpr double kSpinSpeed = 2.8;           // rad/s de rueda en el giro de 360°
+constexpr double kSpinTargetRad = 6.40;      // 360° + margen
+constexpr double kSpinTimeoutS = 8.0;
+constexpr double kGotoTimeoutS = 45.0;
+constexpr double kApproachTimeoutS = 15.0;
+constexpr double kSearchZ = 8.9;             // pasillo de búsqueda al fondo
+constexpr double kSearchX = 3.2;             // extremos del barrido (|x|)
+constexpr double kSearchLegTimeoutS = 30.0;
+constexpr double kSearchWaypointRadiusM = 0.5;
+}  // namespace victims
+
+namespace mission {
+constexpr double kReturnGoalZ = -8.6;        // línea objetivo de la vuelta
+constexpr double kReturnDoneZ = -8.2;        // vuelta completada (línea amarilla de salida en -8)
+constexpr double kReturnReserveFactor = 0.55; // tiempo de vuelta estimado = factor * tiempo de ida (con mapa es más rápida)
+constexpr double kReturnReserveFixedS = 12.0;
+constexpr double kReturnSafetyMarginS = 12.0;
+}  // namespace mission
 
 // ---------------------------------------------------------------------------
 // Cámara frontal: robustez a la iluminación.
@@ -152,17 +216,25 @@ constexpr double kTrustedRangeM = 3.5;       // más allá (niebla) no se confí
 
 // ---------------------------------------------------------------------------
 // Modo de arranque del controlador. Se puede forzar con controllerArgs del
-// robot: "calibrate", "monitor", "navigate" y, con navigate, "nocam" para
+// robot: "calibrate", "monitor", "capture", "navigate", "mission" y, con navigate/mission, "nocam" para
 // desactivar la ayuda de la cámara y "tag=XX" para etiquetar la prueba.
 // ---------------------------------------------------------------------------
-enum class StartupMode { kCalibrate, kMonitor, kNavigate };
-constexpr StartupMode kStartupMode = StartupMode::kNavigate;
+enum class StartupMode { kCalibrate, kMonitor, kNavigate, kCapture, kMission };
+// kMission = misión completa (ida, rescate de las víctimas y vuelta). "navigate"
+// deja solo la prueba de la ida.
+constexpr StartupMode kStartupMode = StartupMode::kMission;
 constexpr bool kUseCameraByDefault = true;
 // Mapa + A*. Con "nomap" en controllerArgs se vuelve al Bug puro (para comparar).
 constexpr bool kUseMapByDefault = true;
 // Vuelca el mapa a results/live_map.txt (cada kLiveMapPeriodS de simulación)
 // para verlo en directo con tools/live_map.py. "nolive" en controllerArgs lo apaga.
 constexpr bool kLiveMapByDefault = true;
+// La cámara esférica alimenta el mapa (solo con mapa activado). "nosphere" la apaga.
+constexpr bool kUseSphereByDefault = true;
+// Capturas de las cámaras (modo "capture", o "snap" durante navigate): cada
+// kCapturePeriodS guarda results/captures/NNNN_front.png y NNNN_sphere.png más
+// una fila en results/captures/index.csv con la pose del robot.
+constexpr double kCapturePeriodS = 2.0;
 constexpr double kLiveMapPeriodS = 0.5;
 
 }  // namespace robot_config

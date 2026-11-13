@@ -13,12 +13,23 @@ struct FreeSpacePoint {
   double forwardM;
   double leftM;
   bool closeObstacle;  // el obstáculo llega al borde inferior: está a menos de ~1 m
+  bool victim = false; // lo que termina el espacio libre en esta columna es verde
+  double rawForwardM = 0.0;  // distancia sin recortar por el alcance de confianza
+};
+
+// Víctima (cilindro verde) vista por la cámara frontal: punto de su base más
+// cercano, en el marco del robot (desde el centro del robot).
+struct VictimBlob {
+  double forwardM = 0.0;
+  double leftM = 0.0;
+  int columns = 0;
 };
 
 // Perfil de espacio libre visto por la cámara frontal.
 struct FreeSpaceProfile {
   bool valid = false;
   std::vector<FreeSpacePoint> points;  // uno por columna procesada
+  std::vector<VictimBlob> victims;
   int victimPixels = 0;                // píxeles verdes (para la fase de víctimas)
   int floorBrightness = 0;             // brillo del suelo de referencia (0-255)
 

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
+#include <string>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -18,11 +20,14 @@ namespace {
 constexpr double kNearContactM = 0.03;  // IR casi en contacto: posible roce
 }
 
-OutboundRun::OutboundRun(bool useCamera, bool useMap, bool liveMap, const std::string &tag)
-    : _useCamera(useCamera), _useMap(useMap), _liveMap(liveMap && useMap), _tag(tag) {}
+OutboundRun::OutboundRun(bool useCamera, bool useMap, bool liveMap, bool useSphere,
+                         const std::string &tag)
+    : _useCamera(useCamera), _useMap(useMap), _liveMap(liveMap && useMap),
+      _useSphere(useSphere && useMap), _tag(tag) {}
 
 WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &localizer,
-                               const FreeSpaceProfile *camera, double dtS) {
+                               const FreeSpaceProfile *camera,
+                               const unsigned char *sphereImage, double dtS) {
   if (_finished || !localizer.initialized()) return WheelCommand::stop();
   const Pose &pose = localizer.pose();
   if (!_started) {
@@ -37,7 +42,8 @@ WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &
     _navigator.setGoalLine(nav::kOutboundGoalZ, pose);
     std::cout << "[RUN] Ida hacia z=" << nav::kOutboundGoalZ << " | cámara "
               << (_useCamera ? "ACTIVADA" : "desactivada") << " | mapa+A* "
-              << (_useMap ? "ACTIVADO" : "desactivado") << std::endl;
+              << (_useMap ? "ACTIVADO" : "desactivado") << " | esférica->mapa "
+              << (_useSphere ? "ACTIVADA" : "desactivada") << std::endl;
   }
 
   // Métricas de proximidad (posibles roces).
@@ -62,6 +68,12 @@ WheelCommand OutboundRun::step(const SensorSnapshot &snapshot, const Localizer &
   }
 
   if (_useMap) _grid.update(snapshot, pose);
+  if (_useSphere && sphereImage != nullptr &&
+      _sphereStep++ % robot_config::mapping::kSphereEveryNSteps == 0) {
+    ++_sphereFrames;
+    _sphereLastOk = _sphereMapper.update(sphereImage, pose, _grid);
+    if (_sphereLastOk) ++_sphereValidFrames;
+  }
   if (_useCamera && camera != nullptr) {
     ++_cameraFrames;
     if (camera->valid) ++_cameraValidFrames;
@@ -87,6 +99,9 @@ void OutboundRun::printStatus(const SensorSnapshot &snapshot, const Localizer &l
   if (_useCamera)
     std::cout << " libre_cam=" << _navigator.lastCameraClearanceM()
               << " luz=" << _lastFloorBrightness;
+  if (_useSphere)
+    std::cout << " esf=" << (_sphereLastOk ? "ok" : "--")
+              << " luz_esf=" << _sphereMapper.lastFloorBrightness();
   if (_useMap)
     std::cout << " plan=" << (_navigator.planActive() ? "ok" : "NO")
               << " ocupadas=" << _grid.occupiedCount();
@@ -120,7 +135,8 @@ void OutboundRun::finish(const SensorSnapshot &snapshot, const Localizer &locali
       << (_minIrM < 1e8 ? _minIrM : -1.0) << ',' << (_useMap ? "map" : "nomap") << ','
       << std::setprecision(0)
       << (_cameraFrames > 0 ? 100.0 * _cameraValidFrames / _cameraFrames : 0.0) << ','
-      << _navigator.planner().plans();
+      << _navigator.planner().plans() << ',' << (_useSphere ? "sphere" : "nosphere") << ','
+      << (_sphereFrames > 0 ? 100.0 * _sphereValidFrames / _sphereFrames : 0.0);
 
   std::cout << "\n[RESULT] " << (success ? "IDA COMPLETADA" : "TIEMPO AGOTADO") << " | "
             << (_useCamera ? "con cámara" : "sin cámara") << std::fixed << std::setprecision(1)
@@ -134,7 +150,7 @@ void OutboundRun::finish(const SensorSnapshot &snapshot, const Localizer &locali
   const std::string header =
       "when,tag,camera,start_x,start_z,start_yaw_deg,success,time_s,max_z,lines,path_m,"
       "obstacles,side_switches,stuck_recoveries,emergency_stops,near_contacts,min_ir_m,"
-      "map,cam_valid_pct,replans";
+      "map,cam_valid_pct,replans,sphere,sphere_valid_pct";
   const std::string path_csv = run_output::path("outbound_results.csv");
   std::string firstLine;
   {
@@ -143,7 +159,9 @@ void OutboundRun::finish(const SensorSnapshot &snapshot, const Localizer &locali
   }
   // Si el archivo es de una versión anterior (otras columnas), apartarlo.
   if (!firstLine.empty() && firstLine != header)
-    std::rename(path_csv.c_str(), run_output::path("outbound_results_old.csv").c_str());
+    std::rename(path_csv.c_str(),
+                run_output::path("outbound_results_old_" + std::to_string(std::time(nullptr)) + ".csv")
+                    .c_str());
   const bool exists = !firstLine.empty() && firstLine == header;
   std::ofstream csv(path_csv, std::ios::app);
   if (!exists) csv << header << '\n';

@@ -1,3 +1,0 @@
-when,tag,camera,start_x,start_z,start_yaw_deg,success,time_s,max_z,lines,path_m,obstacles,side_switches,stuck_recoveries,emergency_stops,near_contacts,min_ir_m,map,cam_valid_pct,replans
-2026-11-12 20:59:31,s??,cam,3.00,-9.00,180,1,55.1,8.21,8,21.09,2,0,0,0,22,0.104,map,100,206
-2026-11-12 21:02:55,s??,cam,3.00,-9.00,180,1,55.1,8.21,8,21.09,2,0,0,0,22,0.104,map,100,206

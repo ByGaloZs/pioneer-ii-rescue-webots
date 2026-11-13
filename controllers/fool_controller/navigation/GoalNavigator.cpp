@@ -36,7 +36,26 @@ WheelCommand drive(double speed, double turn) {
 
 }  // namespace
 
+void GoalNavigator::setGoalPoint(double x, double z, double radiusM, const Pose &pose) {
+  _pointGoal = true;
+  _gx = x;
+  _gz = z;
+  _gRadius = radiusM;
+  _state = State::kAlign;
+  _alignDir = 0;
+  _lastYaw = pose.yawRad;
+  _lastPlanS = -10.0;
+  if (_grid != nullptr) replanIfNeeded(pose, true);
+}
+
+void GoalNavigator::moveGoalPoint(double x, double z, const Pose &pose) {
+  _gx = x;
+  _gz = z;
+  if (_grid != nullptr) replanIfNeeded(pose, true);
+}
+
 void GoalNavigator::setGoalLine(double zTarget, const Pose &pose) {
+  _pointGoal = false;
   _zTarget = zTarget;
   _direction = zTarget >= pose.zM ? 1.0 : -1.0;
   _goalYaw = _direction > 0 ? angles::kPi : 0.0;  // +Z: yaw = pi ; -Z: yaw = 0
@@ -48,11 +67,14 @@ void GoalNavigator::setGoalLine(double zTarget, const Pose &pose) {
 
 double GoalNavigator::remainingM(const Pose &pose) const {
   if (planActive()) return _planner.remainingM(pose);
+  if (_pointGoal) return std::max(0.0, std::hypot(_gx - pose.xM, _gz - pose.zM) - _gRadius);
   return std::max(0.0, (_zTarget - pose.zM) * _direction);
 }
 
 double GoalNavigator::currentGoalYaw(const Pose &pose) const {
-  return planActive() ? _planner.lookaheadYaw(pose) : _goalYaw;
+  if (planActive()) return _planner.lookaheadYaw(pose);
+  if (_pointGoal) return std::atan2(-(_gx - pose.xM), -(_gz - pose.zM));
+  return _goalYaw;
 }
 
 void GoalNavigator::replanIfNeeded(const Pose &pose, bool force) {
@@ -62,7 +84,10 @@ void GoalNavigator::replanIfNeeded(const Pose &pose, bool force) {
   const bool mapChanged = _grid->version() != _planVersion;
   if (!force && since < m::kReplanPeriodS && !(mapChanged && since >= m::kReplanMinPeriodS))
     return;
-  _planner.plan(*_grid, pose, _zTarget, _direction);
+  if (_pointGoal)
+    _planner.planPoint(*_grid, pose, _gx, _gz, _gRadius);
+  else
+    _planner.plan(*_grid, pose, _zTarget, _direction);
   _lastPlanS = _timeS;
   _planVersion = _grid->version();
 }

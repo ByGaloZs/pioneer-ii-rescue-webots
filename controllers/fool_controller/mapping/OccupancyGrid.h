@@ -117,12 +117,37 @@ public:
     }
   }
 
+  // Evidencia procedente de la cámara esférica. Un impacto suma; el suelo visto
+  // solo marca como libre lo que no tiene evidencia de ocupación (no borra lo
+  // que hayan visto los infrarrojos).
+  void addCameraHit(double x, double z, int delta) { addEvidence(x, z, delta); }
+  void addCameraFree(double x, double z) {
+    int cx, cz;
+    if (!toCell(x, z, cx, cz)) return;
+    const int i = index(cx, cz);
+    if (_value[i] <= 0) setValue(cx, cz, _value[i] - 1);
+  }
+
+  // Marca el cilindro de una víctima rescatada como ocupado (radio 0.3 m) para que
+  // el planificador lo rodee en la vuelta.
+  void markDisc(double x, double z, double radiusM) {
+    const int r = static_cast<int>(std::ceil(radiusM / kCellM));
+    int cx0, cz0;
+    if (!toCell(x, z, cx0, cz0)) return;
+    for (int dz = -r; dz <= r; ++dz)
+      for (int dx = -r; dx <= r; ++dx) {
+        if ((dx * dx + dz * dz) * kCellM * kCellM > radiusM * radiusM) continue;
+        setValue(cx0 + dx, cz0 + dz, robot_config::mapping::kMaxEvidence);
+      }
+  }
+
   // Volcado para el visor en directo (tools/live_map.py). Se escribe en un
   // archivo temporal y se renombra, así el visor nunca lee un archivo a medias.
   // Formato: líneas "clave=valor", luego "grid" y las filas de arriba (+z) a abajo.
   void writeLive(const std::string &path, double timeS, const std::string &state,
                  const Pose &pose, double goalZ,
-                 const std::vector<std::pair<double, double>> &plan) const {
+                 const std::vector<std::pair<double, double>> &plan,
+                 const std::string &extra = std::string()) const {
     const std::string tmp = path + ".tmp";
     {
       std::ofstream out(tmp);
@@ -130,7 +155,7 @@ public:
           << ' ' << pose.yawRad << "\ngoalz=" << goalZ << "\nplan=";
       for (size_t i = 0; i < plan.size(); i += 4)  // un punto de cada 4 (40 cm)
         out << plan[i].first << ',' << plan[i].second << ' ';
-      out << "\ngrid\n";
+      out << '\n' << extra << "grid\n";
       for (int cz = kHeight - 1; cz >= 0; --cz) {
         for (int cx = 0; cx < kWidth; ++cx) {
           const int i = index(cx, cz);

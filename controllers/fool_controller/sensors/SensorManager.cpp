@@ -74,9 +74,24 @@ webots::Camera *SensorManager::enableFrontCamera() {
   return _frontCamera;
 }
 
+webots::Camera *SensorManager::enableSphericalCamera() {
+  if (_sphericalCamera != nullptr || _robot == nullptr) return _sphericalCamera;
+  _sphericalCamera = _robot->getCamera(robot_config::kSphericalCameraName);
+  if (_sphericalCamera == nullptr) {
+    std::cerr << "[SENSORS] No se encontró la cámara esférica." << std::endl;
+    return nullptr;
+  }
+  _sphericalCamera->enable(_timeStep);
+  std::cout << "[SENSORS] Cámara esférica activa: " << _sphericalCamera->getWidth() << 'x'
+            << _sphericalCamera->getHeight() << ", campo " << _sphericalCamera->getFov()
+            << " rad" << std::endl;
+  return _sphericalCamera;
+}
+
 void SensorManager::shutdown() {
   if (!_initialized) return;
   if (_frontCamera != nullptr) _frontCamera->disable();
+  if (_sphericalCamera != nullptr) _sphericalCamera->disable();
   _gps->disable();
   _compass->disable();
   _leftEncoder->disable();
