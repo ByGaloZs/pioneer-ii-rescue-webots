@@ -48,6 +48,7 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 
 | Guía | Contenido |
 |---|---|
+| [docs/DIAGRAMAS.md](docs/DIAGRAMAS.md) | Diagramas de flujo: arranque y modos, dependencias entre módulos, fases de la misión |
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Qué hace cada módulo, qué recibe y entrega, dónde tocar |
 | [docs/NAVEGACION.md](docs/NAVEGACION.md) | Máquina de estados, mapa + A*, uso de las cámaras, misión (ida, víctimas, vuelta), depuración |
 | [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | Todos los parámetros de `RobotConfig.h` |
