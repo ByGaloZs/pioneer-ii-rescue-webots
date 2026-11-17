@@ -1543,7 +1543,6 @@ Pioneer2 {
   rotation 0 1 0 3.141592653589793
   controller "fool_controller"
   controllerArgs [
-    "nosphere"
     "tag=03"
   ]
   extensionSlot [

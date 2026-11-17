@@ -22,6 +22,9 @@ experiments/**/screenshots/
 results/*
 !results/.gitkeep
 
+# Console logs written by the controller (one file per run)
+logs/
+
 # OS / local tools
 .DS_Store
 Thumbs.db

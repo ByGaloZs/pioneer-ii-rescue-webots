@@ -12,9 +12,9 @@ volver a la salida en menos de 240 s.
 | Ida | Ida: mapa + A* (IR + cámara esférica), Bug reactivo, guía con cámara frontal | **Validado en Webots**: 10/10 mundos, 33–100 s (un intento por mundo) |
 | Vuelta | Vuelta a la salida (A* que prefiere lo ya recorrido) | **Validado en Webots**: retorno completado en 10/10 mundos |
 | Víctimas | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **Probado en Webots en los 10 mundos**: 2/2 víctimas en 8; 1/2 en s09 y 0/2 en s03 |
-| Misión | Misión integral en los 10 escenarios | **Probada en Webots**: 10/10 retornos; rescate 2/2 en 8/10 mundos. Revisar s03 y s09 |
+| Misión | Misión integral en los 10 escenarios | **Probada en Webots**: 10/10 misiones completas (vuelta a tiempo y 2/2 víctimas) |
 
-**Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** 10/10 robots volvieron antes del límite; se rescataron 17/20 víctimas; **misión completa (vuelta + 2/2) en 8/10 mundos**. Tiempo total medio: **130,7 s**; mínimo: **96,1 s** (s04); máximo: **236,0 s** (s03, con 0 víctimas rescatadas y solo 4 s de margen). En s09 se rescató 1/2. El CSV de esta tanda es `results/mission_results.csv` y no se versiona; repetirla con el mismo código da las mismas cifras (simulación determinista). Los resultados históricos de la ida están en [docs/RESULTADOS.md](docs/RESULTADOS.md).
+**Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** **10/10 misiones completas**: los 10 robots volvieron antes del límite y se rescataron **20/20 víctimas**, comprobadas contra la posición real de cada víctima (el robot giró a 0,69–0,83 m de ella). Tiempo total medio: **129,4 s**; mínimo: **96,1 s** (s04); máximo: **199,3 s** (s03, con 40,7 s de margen). El CSV es `results/mission_results.csv` y la consola de cada ejecución queda en `logs/` (ninguno se versiona); repetir la tanda con el mismo código da las mismas cifras (simulación determinista). Detalle en [docs/RESULTADOS.md](docs/RESULTADOS.md).
 
 Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGURACION.md](docs/CONFIGURACION.md)).
 
@@ -30,7 +30,8 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 3. En el árbol de escena, `Pioneer2` → `controllerArgs`: un argumento por línea. **Vacío = misión completa.** Ejemplos: `tag=s01`; `navigate`
    (solo la ida); `calibrate`; `capture`. Lista completa abajo.
 4. Pulsar Play. Mensajes en consola: `[MISION]`, `[VICTIMA n]`, `[RESULT]`.
-5. Resultados en `results/` (se crea sola junto a `worlds/`; no se versiona).
+5. Resultados en `results/` (se crea sola junto a `worlds/`; no se versiona). La salida de consola de cada ejecución se guarda además en
+   `logs/<mundo>_<fecha-hora>.log` (tampoco se versiona); la primera línea `[STARTUP] Consola guardada en …` dice el archivo.
 6. Visor en directo (opcional): `python3 tools/live_map.py --world worlds/final_scenarioNN.wbt`. El mapa empieza negro y se va llenando según el robot descubre el recinto. Para ver un mapa final como imagen: `python3 tools/live_map.py --map results/map_NN_mission.txt` (añade `--save mapa.png` para guardarlo).
 
 ### `controllerArgs`

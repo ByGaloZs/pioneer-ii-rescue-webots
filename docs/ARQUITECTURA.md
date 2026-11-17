@@ -81,7 +81,8 @@ Convierte la imagen de la cámara frontal en un **perfil de espacio libre**: par
 7. También cuenta `victimPixels` y `floorBrightness` (se imprime como `luz=`).
 8. **Víctimas:** una columna cuyo primer no-suelo es verde (y que no llega al borde inferior de la imagen, donde la base queda fuera de la imagen) se marca `victim`;
    columnas verdes consecutivas forman un bloque (`VictimBlob`) con el punto de la base más cercano al robot. El verde exige además ser más brillante que el suelo
-   (`kMinGreen`, `kFloorGreenFactor`), para descartar ruido sobre las líneas negras.
+   (`kMinGreen`, `kFloorGreenFactor`), para descartar ruido sobre las líneas negras. Esa exigencia tiene un tope (`kMaxRequiredGreen` = 200): con el suelo muy
+   iluminado (brillo > ~174) 1,15 × brillo pasaría de 255 y ninguna víctima podría verse (pasaba en s09).
 
 ### `SphericalView.h` (cámara esférica)
 Geometría medida con capturas reales de Webots: montaje (0,44 m de altura, 5 cm delante y 2,5 cm a la derecha del centro, mirando al suelo), proyección
@@ -93,7 +94,13 @@ cilíndrica alrededor del eje, máscara del propio robot (`isRobot`) y conversi�
 - `fromSphere(...)`: píxel verde más cercano por dirección (bins de 3°) → base del cilindro; exige que la base se vea (no tapada por la silueta del robot) y rango
   entre `kSphereMinRangeM` (0,7 m) y `kSphereMaxRangeM` (3 m). El centro estimado está 0,3 m más allá de la base (radio del cilindro).
 - `VictimTracker`: agrupa las observaciones en coordenadas del mundo (media ponderada; las cercanas, `< kCloseRangeM`, mandan sobre las lejanas), confirma una
-  candidata con `kConfirmFrames` imágenes, fusiona duplicadas, ignora restos "detrás" de una víctima ya vista de cerca y recuerda cuáles están rescatadas o fallidas.
+  candidata con `kConfirmFrames` imágenes, fusiona duplicadas, ignora restos "detrás" de una víctima ya vista de cerca y recuerda cuáles están rescatadas o fallidas. Al completar un rescate, las candidatas
+  pendientes a menos de 1 m (`kDuplicateAfterRescueM`) que no recibieron ninguna observación durante el giro de 360° se marcan **duplicadas**: son la misma víctima
+  estimada con error desde lejos. Una víctima real tan cerca sí se ve en el giro y se conserva (s10). Además, `nearestPending` aplica dos reglas al elegir la siguiente:
+  una candidata a menos de 0,6 m (`kMinVictimSeparationM`, el diámetro) de una rescatada es físicamente la misma y se descarta; las que están a menos de 1 m van
+  **al final de la cola** y, entre ellas, se elige la **más alejada** de la rescatada. En s03 el duplicado estaba tan pegado a la víctima real que recibía
+  observaciones en el giro; con la cola el robot va antes a por la otra víctima. En s10 (víctimas reales a 0,83 m) aparecía un "fantasma" entre las dos, más cerca
+  del robot, y el segundo giro se hacía a 1,30 m de la víctima 2; ahora el fantasma (a 0,49 m de la rescatada) se descarta y se va a la víctima real.
 
 ## 5. Mapa (`mapping/`)
 
@@ -144,7 +151,7 @@ Máquina de estados de la misión completa; es el único sitio que conoce las me
 | Fase | Qué hace | Termina cuando |
 |---|---|---|
 | `IDA` | `GoalNavigator` hacia la línea z = 8,4 (`kOutboundGoalZ`) | z ≥ 8,2 (`kOutboundDoneZ`) |
-| `BUSCAR` | Elige: volver, ir a una víctima confirmada o barrer el pasillo del fondo (z = 8,9; x = ±3,2 y 0) | ver abajo |
+| `BUSCAR` | Elige: volver, ir a una víctima confirmada o barrer el pasillo del fondo (z = 8,9; x = ±3,8 y 0, con una vuelta en el sitio en cada extremo lateral, salvo si ya giró 360° allí al rescatar) | ver abajo |
 | `IR_A_VICTIMA` | A* a meta puntual hasta 1,15 m de la víctima (sin cámara en el navegador) | distancia ≤ 1,25 m, o 45 s (se abandona) |
 | `ACERCAR` | Avance directo hasta `kStopDistanceM` (0,85 m del centro); retrocede si empieza a < 0,7 m | distancia ≤ 0,85 m, IR frontal < 12 cm, o 15 s; o `mustReturn` si aún está a ≥ 1 m (vuelve) |
 | `GIRO_360` | Gira a la izquierda sin avanzar hasta acumular 6,40 rad; imprime `[VICTIMA n]` | giro completo (6,40 rad), o 8 s: entonces la víctima se marca fallida, no rescatada |
@@ -172,6 +179,7 @@ Rutina de calibración (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md).
 
 ## 11. Utilidades (`common/`)
 
+- `ConsoleLog.h`: copia `std::cout` y `std::cerr` a `logs/<mundo>_<fecha-hora>.log` sin dejar de mostrarlos en la consola de Webots (`console_log::Session`, creada al inicio de `main`).
 - `Angles.h`: `wrap`, `toDeg`, `toRad`, `yawTowards(x, z, tx, tz)`.
 - `RunOutput.h`: `directory()` (crea `../../results`, relativo al directorio del controlador que usa Webots), `path(nombre)`, `timestamp()` y
   `resolveTag()` con prioridad `tag=` en `controllerArgs` > mundo detectado (variable `WEBOTS_WORLD` o la línea de órdenes del

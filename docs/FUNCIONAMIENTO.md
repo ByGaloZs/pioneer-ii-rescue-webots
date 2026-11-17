@@ -124,6 +124,13 @@ Si el suelo se ve más oscuro de 25/255, la imagen se descarta.
    La posición es una media ponderada en la que las observaciones lejanas pesan muy poco (el peso cae con la distancia al cubo) y las **cercanas (< 1,7 m) mandan**.
 3. **Confirmación.** Una candidata pasa a **confirmada** cuando se ha visto en **5 imágenes**. Así un reflejo verde aislado no manda al robot a por nada.
 4. Se fusionan candidatas duplicadas, se ignoran "ecos" detrás de una víctima ya vista de cerca, y se recuerda cuáles están **rescatadas** o **fallidas**.
+5. **Tras cada rescate**, las candidatas pendientes a menos de 1 m de la rescatada que no se vieron durante el giro de 360° se descartan como **duplicadas**:
+   en el giro las cámaras miran todo alrededor, así que si allí hubiera otra víctima real la habrían visto. Sin esta regla, una víctima estimada dos veces
+   (una desde lejos con error y otra de cerca) se "rescataba" dos veces.
+6. Al elegir la siguiente víctima:
+   - Una candidata a **menos de 0,6 m** de una rescatada se descarta: dos cilindros de 0,3 m de radio no pueden estar más juntos, así que es la misma.
+   - Las que están a **menos de 1 m** van **al final de la cola**: si hay otra confirmada más lejos, se va primero a por esa. Si no queda otra (dos víctimas
+     reales muy juntas, como en s10), se elige la más alejada de la rescatada, que es la que con más probabilidad es otra víctima.
 
 ## 6. El mapa de ocupación
 
@@ -254,7 +261,9 @@ los tiempos y las métricas. El movimiento lo delega en el navegador.
    `tiempo transcurrido + (0,55 × tiempo de ida + 12 s) + 12 s de margen > 240 s`; es decir, se estima que volver cuesta algo más de la mitad que ir
    (porque ya hay mapa) y se deja un margen.
 3. Si hay una **víctima confirmada** pendiente → `IR_A_VICTIMA` hacia la más cercana.
-4. Si no, **barre el pasillo del fondo** (z = 8,9) pasando por x = −3,2, 0 y 3,2; cada tramo caduca a los 30 s. Si acaba el barrido sin víctimas → `VUELTA`.
+4. Si no, **barre el pasillo del fondo** (z = 8,9) hacia x = ±3,8 y x = 0; cada tramo caduca a los 30 s. En cada extremo lateral (el robot llega a x ≈ ±3,2) da una
+   **vuelta completa en el sitio** para que las cámaras miren la esquina, donde suelen quedar víctimas. No la repite si acaba de dar
+   el giro de rescate de 360° a menos de 1 m de ahí. Si acaba el barrido sin víctimas → `VUELTA`.
 
 Tras rescatar una víctima, se marca en el mapa como obstáculo y se vuelve a `BUSCAR`.
 
@@ -284,13 +293,12 @@ un 45 % y un 65 % más.
 
 Última tanda de la misión completa en Webots (17-11-2026), un intento por mundo (detalle en [RESULTADOS.md](RESULTADOS.md)):
 
-- **10/10** robots volvieron a la salida antes de 240 s (*vuelta a tiempo*).
-- **17/20** víctimas rescatadas: 2/2 en ocho mundos, 1/2 en s09 y 0/2 en s03 (el más oscuro: la ida tardó 186 s y no quedó tiempo para buscar).
-- **8/10 misiones completas** (vuelta a tiempo y 2/2 víctimas).
-- Tiempo total medio **130,7 s** (mínimo 96,1 s en s04, máximo 236,0 s en s03).
+- **10/10 misiones completas**: los 10 robots volvieron a la salida antes de 240 s y rescataron las dos víctimas.
+- **20/20** rescates verificados contra la posición real de las víctimas: el robot giró siempre a 0,69–0,83 m de una víctima real, y nunca dos veces de la misma.
+- Tiempo total medio **129,4 s** (mínimo 96,1 s en s04, máximo 199,3 s en s03, el más oscuro, con 40,7 s de margen).
 
-"Vuelta a tiempo" y "víctimas" se miden por separado. Un robot puede volver a tiempo sin víctimas, como en s03: es intencionado, porque la misión prioriza volver
-antes de 240 s (sección 9, regla de tiempo). La tanda dio exactamente las mismas cifras que la anterior: la simulación es determinista.
+"Vuelta a tiempo" y "víctimas" se miden por separado: un robot podría volver a tiempo sin víctimas, porque la misión prioriza volver antes de 240 s (sección 9,
+regla de tiempo). La simulación es determinista: repetir la tanda con el mismo código da las mismas cifras.
 
 ## 13. Verlo en directo
 

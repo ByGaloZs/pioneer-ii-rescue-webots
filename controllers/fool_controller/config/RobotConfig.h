@@ -184,6 +184,12 @@ constexpr int kSphereMinPixels = 4;
 constexpr double kSphereMinRangeM = 0.7;     // más cerca la base cae en la zona ciega: sesgada
 constexpr int kMinGreen = 12;                // verde mínimo absoluto (0-255) de un píxel de víctima
 constexpr double kFloorGreenFactor = 1.15;   // y al menos esto por el brillo del suelo
+constexpr double kDuplicateAfterRescueM = 1.0; // tras un rescate, candidatas más cerca y no vistas en el giro = la misma;
+                                               // las vistas van al final de la cola
+constexpr double kMinVictimSeparationM = 0.6;  // dos cilindros de 0,3 m no pueden estar más juntos:
+                                               // una candidata así de cerca de una rescatada es la misma
+constexpr int kMaxRequiredGreen = 200;       // tope de esa exigencia: con suelo muy brillante (> ~174)
+                                             // 1,15 × brillo pasaría de 255 y ningún verde la cumpliría
 
 constexpr double kApproachRadiusM = 1.15;    // el planificador deja al robot a esta distancia
 constexpr double kStopDistanceM = 0.85;      // parada final (centro robot - centro víctima); debe ser < 1 m
@@ -194,9 +200,12 @@ constexpr double kSpinTimeoutS = 8.0;
 constexpr double kGotoTimeoutS = 45.0;
 constexpr double kApproachTimeoutS = 15.0;
 constexpr double kSearchZ = 8.9;             // pasillo de búsqueda al fondo
-constexpr double kSearchX = 3.2;             // extremos del barrido (|x|)
+constexpr double kSearchX = 3.8;             // extremos del barrido (|x|); el robot para a ~0,6 m (x ≈ 3,2)
 constexpr double kSearchLegTimeoutS = 30.0;
 constexpr double kSearchWaypointRadiusM = 0.5;
+constexpr double kSearchLookRad = 6.30;      // vuelta completa en cada extremo para mirar la esquina
+constexpr double kSearchLookTimeoutS = 7.0;  // si no completa la vuelta (bloqueado), sigue el barrido
+constexpr double kSearchLookSkipRadiusM = 1.0; // sin vuelta si ya giró 360° (rescate) a menos de esto
 }  // namespace victims
 
 // Parámetros de la vuelta y del reloj de la misión.
