@@ -11,7 +11,7 @@ no se pueden verificar con los archivos actuales. Para comprobarlas hay que repe
 |---|---|
 | Ida con mapa + esférica + cámara, 10 mundos | **10/10** (tabla 1) |
 | Ida sin esférica (solo IR + cámara), 10 mundos | Hecha antes de la esférica (tabla 2, histórica) |
-| **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 vueltas** y **17/20 víctimas** rescatadas (tabla 3) |
+| **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 vueltas a tiempo**, **17/20 víctimas** rescatadas y **8/10 misiones completas** (vuelta + 2/2) (tabla 3) |
 
 ## 1. Ida en Webots, versión actual
 
@@ -48,9 +48,14 @@ Media 103,7 s. Sin memoria (Bug puro) fallaban los mundos 03, 05, 07 y 09 (calle
 
 ## 3. Misión completa en Webots
 
-Modo `mission` (predeterminado), un intento por mundo. Origen: `results/mission_results.csv`.
+Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026. Origen: `results/mission_results.csv`.
+La tanda se repitió el 13-11-2026 y el 17-11-2026 con el mismo código y dio **las mismas cifras en las 10 filas**: con el mismo controlador y el mismo mundo,
+la simulación de Webots es determinista.
 
-| Mundo | Inicio (x, z) | Vuelta ok | Víctimas | Total (s) | Ida (s) | Víctima 1 (s) | Víctima 2 (s) | Vuelta (s) | Dist. final a víctimas (m) | Líneas de vuelta | Casi-contactos |
+**Dos medidas distintas:** *Vuelta a tiempo* (columna `success` del CSV) solo indica que el robot volvió a la salida (z ≤ −8,2) antes de 240 s, sin mirar las víctimas;
+*Víctimas* (columna `victims`) cuenta las rescatadas. Una **misión completa** exige las dos cosas: vuelta a tiempo y 2/2 víctimas.
+
+| Mundo | Inicio (x, z) | Vuelta a tiempo | Víctimas | Total (s) | Ida (s) | Víctima 1 (s) | Víctima 2 (s) | Vuelta (s) | Dist. final a víctimas (m) | Líneas de vuelta | Casi-contactos |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | s01 | (3,00, −9,00) | sí | 2/2 | 98,5 | 33,2 | 42,9 | 63,3 | 35,2 | 0,85 / 0,84 | 7 | 2 |
 | s02 | (0,00, −9,05) | sí | 2/2 | 134,0 | 67,4 | 74,5 | 90,4 | 43,5 | 0,85 / 0,85 | 7 | 17 |
@@ -63,7 +68,7 @@ Modo `mission` (predeterminado), un intento por mundo. Origen: `results/mission_
 | s09 | (0,00, −9,05) | sí | 1/2 | 106,0 | 39,6 | 55,7 | — | 30,7 | 0,85 / — | 7 | 2 |
 | s10 | (0,00, −9,05) | sí | 2/2 | 118,7 | 65,5 | 75,4 | 83,2 | 35,5 | 0,85 / 0,85 | 7 | 19 |
 
-Resumen: vuelta completada en 10/10 · 17/20 víctimas (2/2 en 8 mundos, 1/2 en s09, 0/2 en s03) · tiempo total medio 130,7 s (mín. 96,1 s en s04, máx. 236,0 s en s03).
+Resumen: vuelta a tiempo en 10/10 · 17/20 víctimas (2/2 en 8 mundos, 1/2 en s09, 0/2 en s03) · **misión completa en 8/10** · tiempo total medio 130,7 s (mín. 96,1 s en s04, máx. 236,0 s en s03).
 
 La distancia final es la **estimada** por el controlador entre el robot y el centro de la víctima al parar (objetivo: < 1 m); no se ha contrastado con la posición real de las
 víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques confirmados.
@@ -80,7 +85,8 @@ víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques con
 
 ## Qué no cubren estos datos
 
-- La misión completa se ejecutó una vez por mundo; falta medir la variación entre ejecuciones y con otras poses de salida.
+- Repetir la tanda con el mismo código da exactamente los mismos números (simulación determinista), así que repetirla no mide la variación. Para medirla hay que
+  cambiar la pose de salida (por ejemplo, arrastrando el robot en Webots antes de pulsar Play) o el mundo.
 - No se ha medido la distancia real a las víctimas (solo la estimada) ni las colisiones.
 - No hay todavía comparación `nocam`/`nomap` con la misión completa, ni pruebas con GPS cuantizado (pendiente conocido).
 - El tiempo es simulado, no tiempo real.

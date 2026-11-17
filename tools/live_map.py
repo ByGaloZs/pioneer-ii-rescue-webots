@@ -9,11 +9,14 @@ Uso (desde cualquier carpeta):
     python3 tools/live_map.py                  # usa matplotlib, tkinter o terminal
     python3 tools/live_map.py --terminal       # fuerza el modo terminal (solo Python)
     python3 tools/live_map.py --world worlds/final_scenario03.wbt   # dibuja las paredes reales
+    python3 tools/live_map.py --map results/map_03_mission.txt --save mapa03.png
+                                               # convierte un mapa final guardado en imagen
 
-Leyenda: gris oscuro = ocupado (pared vista), blanco = libre visto, azul = ya
-recorrido, flecha roja = robot, línea verde = plan A*, línea amarilla = meta.
-Con --world se superponen en gris claro las paredes REALES del escenario, para ver
-qué ha descubierto ya el robot y si hay paredes fantasma.
+Leyenda: negro = sin descubrir, gris claro = libre visto, azul = ya recorrido,
+cian = ocupado (pared vista), flecha roja = robot, línea verde = plan A*,
+línea amarilla = meta. El mapa empieza negro y se va llenando según el robot
+descubre el recinto. Con --world se superponen en rojo oscuro las paredes REALES
+del escenario aún no descubiertas, para ver qué falta y si hay paredes fantasma.
 """
 # Librerías estándar: argumentos, matemáticas, archivos, expresiones regulares y tiempo.
 import argparse
@@ -61,6 +64,50 @@ def read_frame(path):
     except ValueError:
         return None
     return frame if len(frame["rows"]) >= 100 else None
+
+
+def read_ascii_map(path):
+    """Lee un mapa final (results/map_<tag>_*.txt) y lo devuelve con el formato de read_frame.
+
+    Ese archivo no guarda pose ni víctimas; las celdas '*' (último plan) se pasan a la
+    línea del plan y en la cuadrícula cuentan como libres.
+    """
+    try:
+        with open(path) as f:
+            lines = f.read().split("\n")
+    except OSError:
+        return None
+    # Las dos primeras líneas son la cabecera (empiezan por "# Mapa" y "# '#'").
+    rows = [r for r in lines if r and not r.startswith("# ")][:200]
+    if len(rows) < 100:
+        return None
+    plan = []
+    for r, row in enumerate(rows):
+        for c, ch in enumerate(row):
+            if ch == "*":
+                plan.append((X_MIN + (c + 0.5) * 0.1, Z_MAX - (r + 0.5) * 0.1))
+    rows = [row.replace("*", ".") for row in rows]
+    # El plan se guarda celda a celda; se ordena desde el robot recorriéndolo por vecindad.
+    plan = order_path(plan)
+    name = os.path.basename(path)
+    return {"t": None, "state": name, "x": None, "z": None, "yaw": 0.0, "goalz": None,
+            "plan": plan, "victims": [], "rows": rows}
+
+
+def order_path(points):
+    """Ordena las celdas sueltas del plan en una polilínea uniendo siempre la más cercana."""
+    if not points:
+        return []
+    left = points[:]
+    path = [left.pop(0)]
+    while left:
+        px, pz = path[-1]
+        i = min(range(len(left)), key=lambda k: (left[k][0] - px) ** 2 + (left[k][1] - pz) ** 2)
+        if (left[i][0] - px) ** 2 + (left[i][1] - pz) ** 2 > 0.2 ** 2:
+            # Trozo separado: se corta la línea con un hueco (NaN) y se sigue.
+            path.append((float("nan"), float("nan")))
+        path.append(left.pop(i))
+    return path
 
 
 def load_world_walls(path):
@@ -123,14 +170,16 @@ def run_matplotlib(args, mask):
     from matplotlib.colors import ListedColormap
 
     # 0 desconocido, 1 libre, 2 recorrido, 3 ocupado, 4 pared real aún sin descubrir
-    # Colores: desconocido, libre, recorrido, ocupado y pared real sin descubrir.
-    cmap = ListedColormap(["#f4f1ea", "#ffffff", "#9ec5ee", "#2b2b2b", "#d9a8a8"])
-    plt.ion() if not args.save else None
+    # Lo desconocido es negro: el mapa se va "encendiendo" según el robot lo descubre.
+    cmap = ListedColormap(["#000000", "#d4d8da", "#5b9bd5", "#19c3d1", "#5a1f1f"])
+    source = args.map or args.file
+    load = read_ascii_map if args.map else read_frame
+    plt.ion() if not (args.save or args.map) else None
     fig, ax = plt.subplots(figsize=(5.2, 9.2))
     # Elementos del dibujo que se actualizan: mapa, plan, robot, víctimas y meta.
     image = ax.imshow([[0] * 100] * 200, cmap=cmap, vmin=0, vmax=4, origin="upper",
                       extent=(X_MIN, X_MAX, Z_MIN, Z_MAX), interpolation="nearest")
-    plan_line, = ax.plot([], [], "-", color="#2e9e44", lw=1.8, label="plan A*")
+    plan_line, = ax.plot([], [], "-", color="#3ddc5a", lw=1.8, label="plan A*")
     robot_dot, = ax.plot([], [], "o", color="#d62828", ms=8)
     victim_dots, = ax.plot([], [], "o", color="#2dbd3a", mec="k", ms=11, ls="none", label="víctimas")
     rescued_dots, = ax.plot([], [], "P", color="#2dbd3a", mec="k", ms=12, ls="none")
@@ -143,11 +192,11 @@ def run_matplotlib(args, mask):
     last_mtime = 0.0
     while True:
         try:
-            mtime = os.path.getmtime(args.file)
+            mtime = os.path.getmtime(source)
         except OSError:
             mtime = 0.0
         if mtime != last_mtime:
-            frame = read_frame(args.file)
+            frame = load(source)
             if frame:
                 last_mtime = mtime
                 # Se traduce cada carácter del archivo a un código de color.
@@ -159,28 +208,39 @@ def run_matplotlib(args, mask):
                             if mask[r][c] and data[r][c] != 3:
                                 data[r][c] = 4
                 image.set_data(data)
-                goal_line.set_ydata([frame["goalz"], frame["goalz"]])
+                if frame["goalz"] is not None:
+                    goal_line.set_ydata([frame["goalz"], frame["goalz"]])
+                else:
+                    goal_line.set_visible(False)
                 if frame["plan"]:
                     plan_line.set_data([p[0] for p in frame["plan"]], [p[1] for p in frame["plan"]])
                 else:
                     plan_line.set_data([], [])
-                robot_dot.set_data([frame["x"]], [frame["z"]])
                 pend = [v for v in frame["victims"] if v[2] < 2]
                 done = [v for v in frame["victims"] if v[2] >= 2]
                 victim_dots.set_data([v[0] for v in pend], [v[1] for v in pend])
                 rescued_dots.set_data([v[0] for v in done], [v[1] for v in done])
-                dx, dz = heading_vector(frame["yaw"])
-                arrow.xy = (frame["x"] + 0.7 * dx, frame["z"] + 0.7 * dz)
-                arrow.set_position((frame["x"], frame["z"]))
                 occupied = sum(row.count("#") for row in frame["rows"])
-                title.set_text("t = %.1f s   %s\npos (%.2f, %.2f)   celdas ocupadas: %d"
-                               % (frame["t"], frame["state"], frame["x"], frame["z"], occupied))
+                if frame["x"] is not None:
+                    robot_dot.set_data([frame["x"]], [frame["z"]])
+                    dx, dz = heading_vector(frame["yaw"])
+                    arrow.xy = (frame["x"] + 0.7 * dx, frame["z"] + 0.7 * dz)
+                    arrow.set_position((frame["x"], frame["z"]))
+                    title.set_text("t = %.1f s   %s\npos (%.2f, %.2f)   celdas ocupadas: %d"
+                                   % (frame["t"], frame["state"], frame["x"], frame["z"], occupied))
+                else:
+                    # Mapa final guardado: no hay pose del robot.
+                    arrow.set_visible(False)
+                    title.set_text("%s\nceldas ocupadas: %d" % (frame["state"], occupied))
                 if args.save:
                     fig.savefig(args.save, dpi=110)
                     return
+                if args.map:
+                    plt.show()
+                    return
                 fig.canvas.draw_idle()
-        if args.save:
-            print("no hay datos en", args.file)
+        if args.save or args.map:
+            print("no hay datos en", source)
             return
         if not plt.fignum_exists(fig.number):
             return
@@ -251,7 +311,10 @@ def main():
     parser.add_argument("--world", help="mundo .wbt para superponer las paredes reales")
     parser.add_argument("--terminal", action="store_true", help="dibujar en la terminal (sin librerías)")
     parser.add_argument("--save", help="guardar una imagen PNG del estado actual y salir")
+    parser.add_argument("--map", help="dibujar un mapa final guardado (results/map_<tag>_*.txt) en vez del directo")
     args = parser.parse_args()
+    if args.map and args.terminal:
+        parser.error("--map solo funciona con matplotlib (el archivo ya es texto)")
 
     # Si se pasó un mundo, se calculan sus paredes reales para superponerlas.
     mask = wall_mask(load_world_walls(args.world)) if args.world else None

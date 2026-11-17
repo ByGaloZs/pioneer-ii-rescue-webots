@@ -3,7 +3,7 @@
 Guía para colaboradores: qué hace cada módulo de `controllers/fool_controller/`, qué recibe, qué entrega y dónde
 tocar según lo que quieras cambiar. Los parámetros numéricos están en [CONFIGURACION.md](CONFIGURACION.md) y la lógica
 de navegación en [NAVEGACION.md](NAVEGACION.md).
-Para una vista gráfica de las dependencias entre módulos ver [DIAGRAMAS.md](DIAGRAMAS.md).
+Para una vista gráfica de las dependencias entre módulos ver [DIAGRAMAS.md](DIAGRAMAS.md); para una explicación narrativa de todo el sistema, [FUNCIONAMIENTO.md](FUNCIONAMIENTO.md).
 
 ## 1. Bucle principal (`fool_controller.cpp`)
 
