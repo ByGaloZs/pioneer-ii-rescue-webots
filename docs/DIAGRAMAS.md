@@ -1,7 +1,8 @@
 # Diagramas del controlador
 
 Vista gráfica de cómo está construido `controllers/fool_controller/`: qué parte del código depende de cuál y de qué se encarga
-cada una. El detalle de cada módulo está en [ARQUITECTURA.md](ARQUITECTURA.md) y la lógica de navegación en [NAVEGACION.md](NAVEGACION.md).
+cada una. El detalle de cada módulo está en [ARQUITECTURA.md](ARQUITECTURA.md), la lógica de navegación en [NAVEGACION.md](NAVEGACION.md) y la
+explicación narrativa del funcionamiento en [FUNCIONAMIENTO.md](FUNCIONAMIENTO.md).
 
 El robot repite un ciclo en cada paso de simulación: leer sensores, estimar dónde está, entender el entorno, decidir qué hacer y
 mandar velocidades a las ruedas. Cada parte vive en su propio módulo y los módulos de arriba solo usan a los de abajo.

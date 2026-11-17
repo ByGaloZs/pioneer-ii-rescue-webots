@@ -14,7 +14,7 @@ volver a la salida en menos de 240 s.
 | Víctimas | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **Probado en Webots en los 10 mundos**: 2/2 víctimas en 8; 1/2 en s09 y 0/2 en s03 |
 | Misión | Misión integral en los 10 escenarios | **Probada en Webots**: 10/10 retornos; rescate 2/2 en 8/10 mundos. Revisar s03 y s09 |
 
-**Última tanda integral en Webots (10 ejecuciones):** 10/10 robots volvieron antes del límite; se rescataron 17/20 víctimas (2/2 en 8 mundos). Tiempo total medio: **130,7 s**; mínimo: **96,1 s** (s04); máximo: **236,0 s** (s03, con 0 víctimas rescatadas y solo 4 s de margen). En s09 se rescató 1/2. El CSV de esta tanda es `results/mission_results.csv` y no se versiona. Los resultados históricos de la ida están en [docs/RESULTADOS.md](docs/RESULTADOS.md).
+**Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** 10/10 robots volvieron antes del límite; se rescataron 17/20 víctimas; **misión completa (vuelta + 2/2) en 8/10 mundos**. Tiempo total medio: **130,7 s**; mínimo: **96,1 s** (s04); máximo: **236,0 s** (s03, con 0 víctimas rescatadas y solo 4 s de margen). En s09 se rescató 1/2. El CSV de esta tanda es `results/mission_results.csv` y no se versiona; repetirla con el mismo código da las mismas cifras (simulación determinista). Los resultados históricos de la ida están en [docs/RESULTADOS.md](docs/RESULTADOS.md).
 
 Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGURACION.md](docs/CONFIGURACION.md)).
 
@@ -31,7 +31,7 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
    (solo la ida); `calibrate`; `capture`. Lista completa abajo.
 4. Pulsar Play. Mensajes en consola: `[MISION]`, `[VICTIMA n]`, `[RESULT]`.
 5. Resultados en `results/` (se crea sola junto a `worlds/`; no se versiona).
-6. Visor en directo (opcional): `python3 tools/live_map.py --world worlds/final_scenarioNN.wbt`.
+6. Visor en directo (opcional): `python3 tools/live_map.py --world worlds/final_scenarioNN.wbt`. El mapa empieza negro y se va llenando según el robot descubre el recinto. Para ver un mapa final como imagen: `python3 tools/live_map.py --map results/map_NN_mission.txt` (añade `--save mapa.png` para guardarlo).
 
 ### `controllerArgs`
 
@@ -48,6 +48,7 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 
 | Guía | Contenido |
 |---|---|
+| [docs/FUNCIONAMIENTO.md](docs/FUNCIONAMIENTO.md) | **Empieza aquí:** cómo funciona el robot de principio a fin (sensores, mapa, A*, navegación, misión) |
 | [docs/DIAGRAMAS.md](docs/DIAGRAMAS.md) | Diagramas de flujo: arranque y modos, dependencias entre módulos, fases de la misión |
 | [docs/ARQUITECTURA.md](docs/ARQUITECTURA.md) | Qué hace cada módulo, qué recibe y entrega, dónde tocar |
 | [docs/NAVEGACION.md](docs/NAVEGACION.md) | Máquina de estados, mapa + A*, uso de las cámaras, misión (ida, víctimas, vuelta), depuración |
