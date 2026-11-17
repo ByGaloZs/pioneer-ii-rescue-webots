@@ -29,6 +29,8 @@
 #include "capture/SnapshotRecorder.h"
 #include "perception/SphericalView.h"
 #include "common/Angles.h"
+#include "common/ConsoleLog.h"
+#include "common/RunOutput.h"
 #include "config/RobotConfig.h"
 #include "control/MotorController.h"
 #include "localization/Localizer.h"
@@ -113,6 +115,16 @@ int main(int argc, char **argv) {
   // Duración de un paso de simulación en segundos.
   const double dtS = timeStep / 1000.0;
 
+  // Las opciones se leen primero para nombrar el log con el mundo.
+  const Options options = parseOptions(argc, argv);
+  // Todo lo que se imprime en consola se copia también a logs/<mundo>_<fecha>.log.
+  console_log::Session log(run_output::resolveTag(options.tag));
+  if (log.active())
+    std::cout << "[STARTUP] Consola guardada en " << log.path().substr(6)  // sin "../../"
+              << std::endl;
+  else
+    std::cerr << "[STARTUP] No se pudo crear el archivo de log; solo consola." << std::endl;
+
   // Motores: se inicializan y se dejan detenidos.
   MotorController motors(&robot);
   motors.initialize();
@@ -126,7 +138,6 @@ int main(int argc, char **argv) {
   }
   sensors.printDistanceSensorProfiles();
 
-  const Options options = parseOptions(argc, argv);
   std::cout << "[STARTUP] controllerArgs recibidos (" << argc - 1 << "):";
   for (int i = 1; i < argc; ++i) std::cout << " [" << argv[i] << "]";
   std::cout << std::endl;
@@ -172,6 +183,20 @@ int main(int argc, char **argv) {
                    "no se usa para el mapa." << std::endl;
       sphereCamera = nullptr;
     }
+  }
+  if (navigate) {
+    // Estado de la cámara esférica al arrancar y, si no se usa, por qué.
+    std::cout << "[STARTUP] Cámara esférica: ";
+    if (sphereCamera != nullptr)
+      std::cout << "EN USO (se ignora cada imagen con el suelo más oscuro de "
+                << robot_config::mapping::kSphereMinBrightness << "/255)";
+    else if (!options.useSphere)
+      std::cout << "DESACTIVADA por 'nosphere' en controllerArgs";
+    else if (!options.useMap && !mission)
+      std::cout << "DESACTIVADA: sin mapa ('nomap')";
+    else
+      std::cout << "DESACTIVADA: no se encontró o no tiene la geometría medida";
+    std::cout << std::endl;
   }
 
   // Módulos principales: localización, calibración, misión completa y solo ida.

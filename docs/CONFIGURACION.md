@@ -98,12 +98,13 @@ falsos obstáculos.
 |---|---|---|
 | Región y fusión | `kMaxAbsXM` 4,9; `kMinZ` 5,0; `kMaxZ` 9,9; `kMergeRadiusM` 0,5; `kDuplicateRadiusM` 0,45; `kShadowRadiusM` 1,25 | Dónde se aceptan víctimas; observaciones/candidatas más cerca que esto son la misma; radio en el que una candidata nueva "detrás" de otra ya vista de cerca se ignora |
 | Confirmación | `kConfirmFrames` 5 | Imágenes necesarias para confirmar |
+| Duplicados | `kDuplicateAfterRescueM` 1,0; `kMinVictimSeparationM` 0,6 | Tras un rescate, candidatas a menos de 1 m no vistas en el giro son la misma víctima y las vistas van al final de la cola; a menos de 0,6 m (el diámetro) siempre son la misma |
 | Pesos y rangos | `kFrontWeight` 20; `kSphereWeight` 6 (peso = k / distancia³); `kFrontMinRangeM` 1,0; `kFrontMaxRangeM` 6,0; `kSphereMinRangeM` 0,7; `kSphereMaxRangeM` 3,0; `kSphereMinPixels` 4 | Rango configurado en que cada cámara aporta observaciones (la precisión real depende de la distancia y debe validarse en Webots) |
 | Observación cercana | `kCloseRangeM` 1,7; `kCloseBlend` 0,35; `kCloseGateM` 0,35; `kCloseHoldFrames` 150; `kMaxWeight` 25 | Las observaciones cercanas corrigen la estimación y mandan sobre las lejanas |
-| Color | `kMinGreen` 12; `kFloorGreenFactor` 1,15 | Verde mínimo absoluto y relativo al brillo del suelo |
+| Color | `kMinGreen` 12; `kFloorGreenFactor` 1,15; `kMaxRequiredGreen` 200 | Verde mínimo absoluto y relativo al brillo del suelo, con tope (con suelo muy brillante 1,15 × brillo pasaría de 255) |
 | Aproximación | `kApproachRadiusM` 1,15; `kStopDistanceM` 0,85; `kTooCloseM` 0,70 | A* hasta 1,15 m; parada final a 0,85 m del centro (debe ser < 1 m); retrocede si empieza más cerca |
 | Giro y tiempos | `kSpinSpeed` 2,8; `kSpinTargetRad` 6,40; `kSpinTimeoutS` 8; `kGotoTimeoutS` 45; `kApproachTimeoutS` 15 | Giro de 360° (+ margen) y abandono por tiempo |
-| Búsqueda | `kSearchZ` 8,9; `kSearchX` 3,2; `kSearchLegTimeoutS` 30; `kSearchWaypointRadiusM` 0,5 | Pasillo de barrido del fondo |
+| Búsqueda | `kSearchZ` 8,9; `kSearchX` 3,8; `kSearchLegTimeoutS` 30; `kSearchWaypointRadiusM` 0,5; `kSearchLookRad` 6,30; `kSearchLookTimeoutS` 7; `kSearchLookSkipRadiusM` 1,0 | Pasillo de barrido del fondo y vuelta de observación en cada extremo |
 | Vuelta (`mission::`) | `kReturnGoalZ` −8,6; `kReturnDoneZ` −8,2; `kReturnReserveFactor` 0,55; `kReturnReserveFixedS` 12; `kReturnSafetyMarginS` 12 | Meta y fin de la vuelta; se deja de buscar si `tiempo + 0,55 × tiempo de ida + 12 s + 12 s de margen > 240 s` |
 
 ## Modo de arranque

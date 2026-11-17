@@ -11,7 +11,7 @@ no se pueden verificar con los archivos actuales. Para comprobarlas hay que repe
 |---|---|
 | Ida con mapa + esférica + cámara, 10 mundos | **10/10** (tabla 1) |
 | Ida sin esférica (solo IR + cámara), 10 mundos | Hecha antes de la esférica (tabla 2, histórica) |
-| **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 vueltas a tiempo**, **17/20 víctimas** rescatadas y **8/10 misiones completas** (vuelta + 2/2) (tabla 3) |
+| **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 misiones completas**: vuelta a tiempo y **20/20 víctimas**, verificadas contra la posición real (tabla 3) |
 
 ## 1. Ida en Webots, versión actual
 
@@ -48,37 +48,45 @@ Media 103,7 s. Sin memoria (Bug puro) fallaban los mundos 03, 05, 07 y 09 (calle
 
 ## 3. Misión completa en Webots
 
-Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026. Origen: `results/mission_results.csv`.
-La tanda se repitió el 13-11-2026 y el 17-11-2026 con el mismo código y dio **las mismas cifras en las 10 filas**: con el mismo controlador y el mismo mundo,
-la simulación de Webots es determinista.
+Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:00). Origen: `results/mission_results.csv` y la consola de cada ejecución en `logs/`.
 
 **Dos medidas distintas:** *Vuelta a tiempo* (columna `success` del CSV) solo indica que el robot volvió a la salida (z ≤ −8,2) antes de 240 s, sin mirar las víctimas;
 *Víctimas* (columna `victims`) cuenta las rescatadas. Una **misión completa** exige las dos cosas: vuelta a tiempo y 2/2 víctimas.
 
-| Mundo | Inicio (x, z) | Vuelta a tiempo | Víctimas | Total (s) | Ida (s) | Víctima 1 (s) | Víctima 2 (s) | Vuelta (s) | Dist. final a víctimas (m) | Líneas de vuelta | Casi-contactos |
+| Mundo | Inicio (x, z) | Vuelta a tiempo | Víctimas | Total (s) | Ida (s) | Víctima 1 (s) | Víctima 2 (s) | Vuelta (s) | Dist. **real** robot–víctima en el giro (m) | Líneas de vuelta | Casi-contactos |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| s01 | (3,00, −9,00) | sí | 2/2 | 98,5 | 33,2 | 42,9 | 63,3 | 35,2 | 0,85 / 0,84 | 7 | 2 |
-| s02 | (0,00, −9,05) | sí | 2/2 | 134,0 | 67,4 | 74,5 | 90,4 | 43,5 | 0,85 / 0,85 | 7 | 17 |
-| s03 | (0,00, −9,05) | sí | 0/2 | 236,0 | 186,5 | — | — | 49,5 | — / — | 7 | 143 |
-| s04 | (0,00, −9,05) | sí | 2/2 | 96,1 | 41,2 | 50,3 | 63,0 | 33,1 | 0,70 / 0,85 | 7 | 7 |
-| s05 | (0,00, −9,05) | sí | 2/2 | 148,2 | 65,4 | 74,6 | 106,7 | 41,5 | 0,85 / 0,85 | 7 | 3 |
-| s06 | (0,00, −9,05) | sí | 2/2 | 135,8 | 63,6 | 72,5 | 100,9 | 34,9 | 0,85 / 0,85 | 7 | 21 |
-| s07 | (0,00, −9,05) | sí | 2/2 | 123,2 | 54,9 | 61,8 | 84,3 | 38,9 | 0,70 / 0,85 | 7 | 19 |
-| s08 | (0,00, −9,05) | sí | 2/2 | 110,6 | 49,7 | 60,3 | 76,0 | 34,6 | 0,85 / 0,85 | 7 | 0 |
-| s09 | (0,00, −9,05) | sí | 1/2 | 106,0 | 39,6 | 55,7 | — | 30,7 | 0,85 / — | 7 | 2 |
-| s10 | (0,00, −9,05) | sí | 2/2 | 118,7 | 65,5 | 75,4 | 83,2 | 35,5 | 0,85 / 0,85 | 7 | 19 |
+| s01 | (3,00, −9,00) | sí | 2/2 | 98,5 | 33,2 | 42,9 | 63,3 | 35,2 | 0,79 / 0,79 | 7 | 2 |
+| s02 | (0,00, −9,05) | sí | 2/2 | 134,0 | 67,4 | 74,5 | 90,4 | 43,5 | 0,83 / 0,78 | 7 | 17 |
+| s03 | (0,00, −9,05) | sí | 2/2 | 199,3 | 99,5 | 107,3 | 129,7 | 69,6 | 0,69 / 0,80 | 7 | 49 |
+| s04 | (0,00, −9,05) | sí | 2/2 | 96,1 | 41,2 | 50,3 | 63,0 | 33,1 | 0,73 / 0,79 | 7 | 7 |
+| s05 | (0,00, −9,05) | sí | 2/2 | 149,6 | 65,4 | 74,6 | 107,2 | 42,3 | 0,77 / 0,80 | 7 | 0 |
+| s06 | (0,00, −9,05) | sí | 2/2 | 137,7 | 63,6 | 72,5 | 103,5 | 34,2 | 0,78 / 0,80 | 7 | 16 |
+| s07 | (0,00, −9,05) | sí | 2/2 | 123,2 | 54,9 | 61,8 | 84,3 | 38,9 | 0,72 / 0,79 | 7 | 19 |
+| s08 | (0,00, −9,05) | sí | 2/2 | 110,6 | 49,7 | 60,3 | 76,0 | 34,6 | 0,80 / 0,79 | 7 | 0 |
+| s09 | (0,00, −9,05) | sí | 2/2 | 122,7 | 39,6 | 59,8 | 87,0 | 35,6 | 0,79 / 0,79 | 7 | 4 |
+| s10 | (0,00, −9,05) | sí | 2/2 | 121,9 | 65,5 | 75,4 | 86,0 | 35,8 | 0,80 / 0,83 | 7 | 21 |
 
-Resumen: vuelta a tiempo en 10/10 · 17/20 víctimas (2/2 en 8 mundos, 1/2 en s09, 0/2 en s03) · **misión completa en 8/10** · tiempo total medio 130,7 s (mín. 96,1 s en s04, máx. 236,0 s en s03).
+Resumen: vuelta a tiempo en 10/10 · **20/20 víctimas** · **misión completa en 10/10** · tiempo total medio 129,4 s (mín. 96,1 s en s04, máx. 199,3 s en s03).
 
-La distancia final es la **estimada** por el controlador entre el robot y el centro de la víctima al parar (objetivo: < 1 m); no se ha contrastado con la posición real de las
-víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques confirmados.
+**Verificación de los rescates.** Para cada giro de 360° se tomó la posición del robot de la consola (`logs/`) y se midió su distancia a la víctima **real** (posición
+del `.wbt`) a la que corresponde el rescate. Los 20 giros se hicieron a **0,69–0,83 m** de una víctima real (objetivo < 1 m), y en cada mundo las dos víctimas rescatadas
+son distintas. La posición estimada de cada víctima cayó a ≤ 0,11 m de la real, salvo la primera de s03 (0,32 m). Los casi-contactos son lecturas IR < 3 cm o
+saturadas, no choques confirmados.
+
+**Cambios respecto a la tanda anterior (13-11 / 17-11, 17/20 víctimas):**
+- **s03** (0/2 → 2/2): el mundo tenía guardado `nosphere` de una prueba comparativa; sin la esférica la ida tardaba 186,5 s y no quedaba tiempo para buscar. Con ella,
+  99,5 s. Además la misma víctima generaba dos candidatas (una desde lejos con error) y se "rescataba" dos veces; ahora las candidatas junto a una rescatada van al
+  final de la cola y el robot va a por la otra víctima.
+- **s09** (1/2 → 2/2): la víctima de la esquina (−4,21; 9,46) está en una zona muy iluminada; el umbral de verde (1,15 × brillo del suelo) pasaba de 255 y ninguna
+  cámara podía verla. El umbral tiene ahora un tope (200). El barrido llega más a las esquinas (x = ±3,8) y da una vuelta en cada extremo.
+- **s10** (2/2 aparente → 2/2 real): las dos víctimas están a 0,83 m; un "fantasma" entre ellas hacía que el segundo giro se hiciera a 1,30 m de la víctima 2. Ahora
+  una candidata a menos de 0,6 m de una rescatada se descarta y, entre las cercanas, se elige la más alejada de la rescatada.
 
 ## Lectura de los resultados
 
-- **Tiempo:** crece con los obstáculos rodeados en la ida; la vuelta es parecida entre mundos (31–50 s) porque el mapa ya está construido y el A\* prefiere lo recorrido.
-- **Margen:** s03 es el caso crítico: la ida tardó 186,5 s, no se rescató ninguna víctima, el total fue 236,0 s y quedaron solo 4 s sobre el límite de 240 s; además la esférica
-  se marcó utilizable 0 % del tiempo y hubo 143 casi-contactos. En el resto de mundos el margen es de al menos 91 s.
-- **s09:** se rescató 1/2 víctimas; el tiempo total (106,0 s) deja margen, así que el fallo está en la búsqueda o la detección de la segunda, no en el reloj.
+- **Tiempo:** crece con los obstáculos rodeados en la ida; la vuelta suele durar 33–44 s porque el mapa ya está construido y el A\* prefiere lo recorrido.
+- **Margen:** s03 sigue siendo el caso crítico: ida de 99,5 s, la segunda víctima en el otro extremo del fondo y vuelta de 69,6 s; total 199,3 s, **40,7 s** por debajo
+  del límite. La esférica fue utilizable el 93 % del tiempo (se apaga en los tramos más oscuros). En el resto de mundos el margen es de al menos 90 s.
 - **Casi-contactos:** cuentan episodios con algún IR < 3 cm o saturado. `min_ir_m` rondó 0,10 m, así que reflejan la bandera de saturación y no un roce confirmado.
   Si hubo colisiones hay que revisarlo visualmente en Webots.
 - **Frenos de emergencia = 0** en todas las pruebas.
@@ -87,7 +95,7 @@ víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques con
 
 - Repetir la tanda con el mismo código da exactamente los mismos números (simulación determinista), así que repetirla no mide la variación. Para medirla hay que
   cambiar la pose de salida (por ejemplo, arrastrando el robot en Webots antes de pulsar Play) o el mundo.
-- No se ha medido la distancia real a las víctimas (solo la estimada) ni las colisiones.
+- Las colisiones no se han medido (los casi-contactos son lecturas IR, no choques).
 - No hay todavía comparación `nocam`/`nomap` con la misión completa, ni pruebas con GPS cuantizado (pendiente conocido).
 - El tiempo es simulado, no tiempo real.
 
@@ -97,6 +105,9 @@ víctimas. Los casi-contactos son lecturas IR < 3 cm o saturadas, no choques con
 2. Esperar `[RESULT] MISION COMPLETA` (misión) o `[RESULT] IDA COMPLETADA` (`navigate`). Si se agotan los 240 s aparece `TIEMPO AGOTADO`.
 3. El resultado se **añade como una fila** al CSV del modo (misión: `results/mission_results.csv`; ida: `results/outbound_results.csv`). Si cambia el encabezado, el archivo
    anterior se aparta como `*_old_<fecha>.csv` y se crea uno nuevo.
+
+La consola completa de cada ejecución queda en `logs/<mundo>_<fecha-hora>.log` (un archivo por ejecución, no se versiona): ahí están las líneas
+`[MISION]`, `[VICTIMAS]` y `[RESULT]` para revisar qué pasó.
 
 Variantes para comparar: `nocam`, `nomap`, `nosphere` y, opcionalmente, `tag=s03-nocam` para distinguir las filas.
 

@@ -119,7 +119,10 @@ IDA ──z ≥ 8,2──► BUSCAR ──víctima confirmada──► IR_A_VICT
 
 - **Detección:** cada paso se alimentan las observaciones de la cámara frontal (base del bloque verde) y de la esférica (píxel verde más cercano por dirección) a un
   `VictimTracker`. Una víctima se confirma con 5 imágenes; las observaciones cercanas (< 1,7 m) corrigen las lejanas. Detalle en [ARQUITECTURA.md](ARQUITECTURA.md), sección 4.
-- **Búsqueda:** si no hay víctima confirmada, barre el pasillo del fondo con tres tramos (a x = ±3,2 y x = 0, z = 8,9); cada tramo caduca a los 30 s.
+- **Búsqueda:** si no hay víctima confirmada, barre el pasillo del fondo con tres tramos (a x = ±3,8 y x = 0, z = 8,9); cada tramo caduca a los 30 s. El robot da el punto por alcanzado a ~0,6 m,
+  así que en los extremos llega a x ≈ ±3,2. Allí da una **vuelta completa en el sitio** (`kSearchLookRad`, máximo 7 s) para que las dos cámaras miren la esquina y
+  junten las imágenes de confirmación; si se confirma una víctima o se acaba el tiempo durante la vuelta, la interrumpe. Se la salta si el robot ya completó un giro
+  de rescate a menos de 1 m (`kSearchLookSkipRadiusM`): desde ahí ya miró alrededor.
 - **Aproximación:** A* hasta 1,15 m y avance directo hasta 0,85 m del centro de la víctima (retrocede si ya está a < 0,7 m); se abandona a los 45 s (ir) o 15 s (acercar).
 - **Giro y mensaje:** giro a la izquierda hasta acumular 6,40 rad (límite 8 s; si no se alcanza, la víctima **no** cuenta como rescatada y se marca fallida) e impresión de `[VICTIMA n] Víctima encontrada ... a d m del robot` y `... VICTIMA RESCATADA ...`.
   Después la víctima se marca como obstáculo circular (0,3 m) en el mapa y no se vuelve a contar.
@@ -151,8 +154,22 @@ En el modo `navigate` la consola imprime cada segundo:
 | `plan` / `ocupadas` | si hay plan válido / celdas ocupadas en el mapa |
 | `F` | distancia del sector frontal (`--` si no detecta nada) |
 
-En el modo `mission` la línea es `[MISION] t=… <fase> pos=(x, z) yaw=… victimas vistas=… rescatadas=… plan=ok restante=…`, donde `<fase>` es `IDA`, `BUSCAR`,
+En el modo `mission` la línea es `[MISION] t=… <fase> pos=(x, z) yaw=… victimas vistas=… rescatadas=… esf=ok luz_esf=… plan=ok restante=…`, donde `esf` es
+`ok` (la esférica se usa), `OSCURA` (la última imagen se descartó por poca luz, `luz_esf` < 25) u `off` (desactivada desde el arranque) y `<fase>` es `IDA`, `BUSCAR`,
 `IR_A_VICTIMA`, `ACERCAR`, `GIRO_360` o `VUELTA`. Además se imprimen los eventos (`[MISION] Víctima confirmada…`, `[VICTIMA n] …`) y la lista de candidatas al terminar la ida.
+Al arrancar, `[STARTUP] Cámara esférica:` dice si se usa o por qué no (`nosphere`, `nomap`, cámara no encontrada). Durante la misión,
+`[MISION] t=… s: cámara esférica DESACTIVADA por poca luz` / `REACTIVADA` avisa cuando cambia de estado y se mantiene al menos 1 s.
+
+**Diagnóstico de víctimas** (líneas `[VICTIMAS]`):
+
+- `nueva candidata #n en (x, z) vista con la frontal/esférica a d m; robot en (x, z)`: dónde y desde qué distancia se creó cada candidata. Una candidata creada desde lejos
+  puede quedar mal colocada.
+- `candidata #n CONFIRMADA en (x, z)`: llegó a las 5 imágenes.
+- `cercana DESCARTADA (k para #n) ...`: una observación cercana (< 1,7 m) cayó a más de 0,35 m de la estimación de la candidata y se ignoró. Se avisa la 1ª, 10ª, 50ª, 200ª
+  y luego cada 500. Si una víctima real acumula muchas, su candidata está mal colocada y no puede corregirse.
+- La lista completa de candidatas (fuente de sus observaciones, distancia mínima, cercanas descartadas) y el recuento global por filtro (aceptadas, fuera de zona, eco,
+  sobre rescatada, cercanas descartadas) se imprime al terminar la ida, al agotar la búsqueda, al volver por falta de tiempo y cuando falla un rescate.
+
 El visor `tools/live_map.py` marca las víctimas (círculo = vista, cruz = rescatada).
 
 Para comparar enfoques, ejecutar el mismo mundo con `nocam`, `nomap` o `nosphere` y comparar las filas del CSV.

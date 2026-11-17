@@ -49,7 +49,9 @@ RelativeClass classifyRelative(int r, int g, int b, const FloorReference &floor)
   const double gr = g / rr, br = b / rr, gb = g / bb;
   if (gr > c::kVictimRatio * floor.greenOverRed && gb > c::kVictimRatio * floor.greenOverBlue &&
       g >= std::max(robot_config::victims::kMinGreen,
-                    static_cast<int>(robot_config::victims::kFloorGreenFactor * floor.brightness)))
+                    std::min(robot_config::victims::kMaxRequiredGreen,
+                             static_cast<int>(robot_config::victims::kFloorGreenFactor *
+                                              floor.brightness))))
     return RelativeClass::kVictim;
   if (gr > c::kObstacleRatio * floor.greenOverRed && br > c::kObstacleRatio * floor.blueOverRed)
     return RelativeClass::kObstacle;

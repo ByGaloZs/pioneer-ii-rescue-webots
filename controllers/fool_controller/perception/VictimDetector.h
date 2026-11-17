@@ -39,6 +39,16 @@ struct VictimObservation {
   double x, z;   // centro estimado del cilindro (mundo)
   double weight;
   double range;  // distancia robot -> base vista (m)
+  int source = 0;  // 0 = cámara frontal, 1 = cámara esférica (para el diagnóstico)
+};
+
+// Qué hizo el rastreador con una observación (para el diagnóstico en consola).
+enum class VictimAddResult {
+  kAccepted,  // sumada a una candidata (o creó una nueva)
+  kZone,      // fuera de la zona del fondo donde puede haber víctimas
+  kShadow,    // "eco" detrás de una víctima ya vista de cerca o rescatada
+  kRescued,   // cae sobre una víctima ya rescatada
+  kGate,      // cercana pero a más de kCloseGateM de la estimación: descartada
 };
 
 // Lleva el registro de candidatas: fusiona observaciones cercanas y confirma
@@ -54,6 +64,43 @@ public:
     int closeFrame = -1000;  // última imagen con una observación cercana (precisa)
     bool rescued = false;
     bool failed = false;  // intento de rescate fallido
+    // Diagnóstico: de qué cámara llegan sus observaciones, cuántas cercanas se
+    // descartaron por el filtro de kCloseGateM y la distancia mínima a la que se vio.
+    int frontObs = 0, sphereObs = 0, gateRejects = 0;
+    double minRange = 1e9;
+    bool announced = false;  // ya se avisó en consola de que está confirmada
+    int lastSeenFrame = -1;  // última imagen con alguna observación suya (aceptada o descartada)
+    bool duplicate = false;  // descartada: era la misma víctima que una ya rescatada
+  };
+
+  // Imagen actual (para saber qué se vio durante un intervalo).
+  int frame() const { return _frame; }
+
+  // Tras rescatar `rescued`: las candidatas pendientes a menos de radiusM de ella
+  // que NO se han visto desde sinceFrame (el giro de 360° junto a la víctima, en
+  // el que las cámaras miran todo alrededor) son la misma víctima estimada con
+  // error, no otra. Se marcan como duplicadas y devuelve sus índices.
+  std::vector<int> discardDuplicatesOf(const Candidate &rescued, int sinceFrame, double radiusM) {
+    std::vector<int> discarded;
+    for (size_t i = 0; i < _candidates.size(); ++i) {
+      Candidate &c = _candidates[i];
+      if (&c == &rescued || c.rescued || c.failed || c.duplicate) continue;
+      if (std::hypot(c.x - rescued.x, c.z - rescued.z) >= radiusM) continue;
+      if (c.lastSeenFrame >= sinceFrame) continue;  // se vio en el giro: puede ser otra víctima
+      c.duplicate = true;
+      discarded.push_back(static_cast<int>(i));
+    }
+    return discarded;
+  }
+
+  // Recuento global de observaciones por resultado (diagnóstico).
+  struct Stats {
+    int accepted = 0, zone = 0, shadow = 0, rescued = 0, gate = 0;
+  };
+  // Última observación descartada por el filtro de kCloseGateM (diagnóstico).
+  struct GateEvent {
+    double obsX = 0.0, obsZ = 0.0, candX = 0.0, candZ = 0.0, distM = 0.0, rangeM = 0.0;
+    int source = 0, candidate = -1, rejects = 0;
   };
 
   // Se llama al iniciar cada imagen nueva.
@@ -61,9 +108,25 @@ public:
 
   // Agrega una observación: la une a la candidata más cercana o crea una nueva.
   // Las observaciones cercanas son más precisas y mandan sobre las lejanas.
-  void add(const VictimObservation &o, double robotX, double robotZ) {
+  VictimAddResult add(const VictimObservation &o, double robotX, double robotZ) {
+    const VictimAddResult result = addImpl(o, robotX, robotZ);
+    switch (result) {
+      case VictimAddResult::kAccepted: ++_stats.accepted; break;
+      case VictimAddResult::kZone: ++_stats.zone; break;
+      case VictimAddResult::kShadow: ++_stats.shadow; break;
+      case VictimAddResult::kRescued: ++_stats.rescued; break;
+      case VictimAddResult::kGate: ++_stats.gate; break;
+    }
+    return result;
+  }
+  const Stats &stats() const { return _stats; }
+  const GateEvent &lastGate() const { return _lastGate; }
+
+private:
+  VictimAddResult addImpl(const VictimObservation &o, double robotX, double robotZ) {
     namespace v = robot_config::victims;
-    if (std::fabs(o.x) > v::kMaxAbsXM || o.z < v::kMinZ || o.z > v::kMaxZ) return;
+    if (std::fabs(o.x) > v::kMaxAbsXM || o.z < v::kMinZ || o.z > v::kMaxZ)
+      return VictimAddResult::kZone;
     Candidate *best = nullptr;
     double bestD = v::kMergeRadiusM;
     for (Candidate &c : _candidates) {
@@ -84,19 +147,33 @@ public:
           const double vx = c.x - robotX, vz = c.z - robotZ, vl = std::max(0.05, std::hypot(vx, vz));
           if (d < v::kShadowRadiusM && (dx * vx + dz * vz) > 0.0 &&
               (dx * vx + dz * vz) / (std::max(0.05, d) * vl) > 0.8)
-            return;
+            return VictimAddResult::kShadow;
         }
       _candidates.push_back(Candidate());
       best = &_candidates.back();
     }
-    if (best->rescued) return;  // ya rescatada: su posición ya es buena
+    if (best->rescued) return VictimAddResult::kRescued;  // ya rescatada: su posición ya es buena
     if (best->frames == 0) {
       best->x = o.x;
       best->z = o.z;
     } else if (o.range < v::kCloseRangeM) {
       // Una cercana es precisa: si cae lejos de la estimación es OTRA víctima
       // (o un resto de ella), no una corrección.
-      if (std::hypot(best->x - o.x, best->z - o.z) > v::kCloseGateM) return;
+      const double gateD = std::hypot(best->x - o.x, best->z - o.z);
+      if (gateD > v::kCloseGateM) {
+        ++best->gateRejects;
+        best->lastSeenFrame = _frame;  // algo verde se vio junto a ella
+        _lastGate.obsX = o.x;
+        _lastGate.obsZ = o.z;
+        _lastGate.candX = best->x;
+        _lastGate.candZ = best->z;
+        _lastGate.distM = gateD;
+        _lastGate.rangeM = o.range;
+        _lastGate.source = o.source;
+        _lastGate.candidate = static_cast<int>(best - &_candidates[0]);
+        _lastGate.rejects = best->gateRejects;
+        return VictimAddResult::kGate;
+      }
       // Observación cercana (la base se ve a pocos píxeles de error): manda sobre
       // las lejanas, que tienen decenas de cm de error.
       best->x = (1.0 - v::kCloseBlend) * best->x + v::kCloseBlend * o.x;
@@ -109,11 +186,17 @@ public:
       best->weight = std::min(total, v::kMaxWeight);
     }
     if (o.range < v::kCloseRangeM) best->closeFrame = _frame;
+    if (o.source == 0) ++best->frontObs; else ++best->sphereObs;
+    best->minRange = std::min(best->minRange, o.range);
+    best->lastSeenFrame = _frame;
     if (best->lastFrame != _frame) {
       ++best->frames;
       best->lastFrame = _frame;
     }
+    return VictimAddResult::kAccepted;
   }
+
+public:
 
   // Une candidatas que han acabado muy juntas (la misma víctima vista con
   // estimaciones lejanas distintas). Los índices cambian: llamar solo cuando no
@@ -132,6 +215,13 @@ public:
         a.frames += b.frames;
         a.rescued = a.rescued || b.rescued;
         a.failed = a.failed || b.failed;
+        a.frontObs += b.frontObs;
+        a.sphereObs += b.sphereObs;
+        a.gateRejects += b.gateRejects;
+        a.minRange = std::min(a.minRange, b.minRange);
+        a.announced = a.announced || b.announced;
+        a.duplicate = a.duplicate || b.duplicate;
+        a.lastSeenFrame = std::max(a.lastSeenFrame, b.lastSeenFrame);
         _candidates.erase(_candidates.begin() + j);
       }
   }
@@ -142,18 +232,50 @@ public:
   }
 
   // Candidato confirmado, no rescatado ni fallido, más cercano a (x, z); o nullptr.
+  // Siguiente víctima a la que ir, con estas reglas:
+  //  - A menos de kMinVictimSeparationM (0,6 m, el diámetro) de una rescatada no
+  //    puede haber otra víctima: es la misma, se marca duplicada y se ignora.
+  //  - Las que están a menos de kDuplicateAfterRescueM (1 m) de una rescatada van
+  //    al final de la cola: pueden ser esa misma víctima estimada dos veces (s03).
+  //    Entre ellas se elige la MÁS ALEJADA de la rescatada, la que con más
+  //    probabilidad es otra víctima (s10: dos víctimas reales a 0,83 m y un
+  //    "fantasma" entre las dos).
+  //  - Las demás, por cercanía al robot, como siempre.
   Candidate *nearestPending(double x, double z) {
+    namespace v = robot_config::victims;
     Candidate *best = nullptr;
-    double bestD = 1e9;
+    double bestKey = 1e9;
+    bool bestNearRescued = true;
     for (Candidate &c : _candidates) {
-      if (c.rescued || c.failed || !confirmed(c)) continue;
-      const double d = std::hypot(c.x - x, c.z - z);
-      if (d < bestD) {
-        bestD = d;
+      if (c.rescued || c.failed || c.duplicate || !confirmed(c)) continue;
+      const double dR = distanceToRescued(c);
+      if (dR < v::kMinVictimSeparationM) {
+        c.duplicate = true;
+        continue;
+      }
+      const bool nearRescued = dR < v::kDuplicateAfterRescueM;
+      // Clave a minimizar: distancia al robot, o (cerca de una rescatada) -distancia a ella.
+      const double key = nearRescued ? -dR : std::hypot(c.x - x, c.z - z);
+      if (best == nullptr || (bestNearRescued && !nearRescued) ||
+          (nearRescued == bestNearRescued && key < bestKey)) {
+        bestKey = key;
         best = &c;
+        bestNearRescued = nearRescued;
       }
     }
     return best;
+  }
+
+  // Distancia a la víctima rescatada más cercana (infinito si no hay ninguna).
+  double distanceToRescued(const Candidate &c) const {
+    double d = 1e9;
+    for (const Candidate &r : _candidates)
+      if (r.rescued && &r != &c) d = std::min(d, std::hypot(r.x - c.x, r.z - c.z));
+    return d;
+  }
+  // ¿Está a menos de kDuplicateAfterRescueM de alguna víctima rescatada?
+  bool nearRescuedVictim(const Candidate &c) const {
+    return distanceToRescued(c) < robot_config::victims::kDuplicateAfterRescueM;
   }
 
   // Cuántas candidatas ya fueron rescatadas.
@@ -174,6 +296,8 @@ public:
 private:
   std::vector<Candidate> _candidates;
   int _frame = 0;
+  Stats _stats;
+  GateEvent _lastGate;
 };
 
 // Funciones que convierten lo que ve cada cámara en observaciones de víctimas.
@@ -223,7 +347,11 @@ inline void fromSphere(const unsigned char *image, const Pose &pose, int floorBr
   namespace v = robot_config::victims;
   if (image == nullptr) return;
   constexpr int kBins = 120;
-  const int minGreen = std::max(v::kMinGreen, static_cast<int>(1.15 * floorBrightness));
+  // Verde mínimo ligado al brillo del suelo, con tope: con mucha luz el suelo
+  // ronda 230 y 1,15 × 230 > 255 haría imposible ver ninguna víctima.
+  const int minGreen = std::max(
+      v::kMinGreen, std::min(v::kMaxRequiredGreen,
+                             static_cast<int>(v::kFloorGreenFactor * floorBrightness)));
   double nearest[kBins];
   double nearestF[kBins], nearestL[kBins];
   int nearestU[kBins], nearestV[kBins];
@@ -293,6 +421,7 @@ inline void fromSphere(const unsigned char *image, const Pose &pose, int floorBr
     if (!baseVisible) continue;
     const double w = std::max(0.1, std::min(4.0, v::kSphereWeight / (range * range * range)));
     out.push_back(centerFromBase(pose, nearestF[best], nearestL[best], w));
+    out.back().source = 1;
   }
 }
 

@@ -71,7 +71,9 @@ public:
     const bool sphereTurn = _sphereStep++ % robot_config::mapping::kSphereEveryNSteps == 0;
     if (_useMap && _useSphere && sphereImage != nullptr && sphereTurn) {
       ++_sphereFrames;
-      if (_sphereMapper.update(sphereImage, pose, _grid)) ++_sphereValidFrames;
+      _sphereLastOk = _sphereMapper.update(sphereImage, pose, _grid);
+      if (_sphereLastOk) ++_sphereValidFrames;
+      reportSphereChange(elapsed);
     }
     detectVictims(pose, camera, sphereImage, sphereTurn);
 
@@ -138,6 +140,13 @@ public:
               << " pos=(" << pose.xM << ", " << pose.zM << ") yaw=" << std::setprecision(0)
               << angles::toDeg(pose.yawRad) << " victimas vistas="
               << _tracker.confirmedCount() << " rescatadas=" << _tracker.rescuedCount();
+    // Cámara esférica: ok = se usa; OSCURA = imagen descartada por poca luz;
+    // off = desactivada desde el arranque (nosphere, nomap o geometría distinta).
+    if (_useMap && _useSphere)
+      std::cout << " esf=" << (_sphereLastOk ? "ok" : "OSCURA")
+                << " luz_esf=" << _sphereMapper.lastFloorBrightness();
+    else
+      std::cout << " esf=off";
     if (_useMap)
       std::cout << " plan=" << (_navigator.planActive() ? "ok" : "NO")
                 << " restante=" << std::setprecision(2) << _navigator.remainingM(pose);
@@ -166,6 +175,30 @@ private:
               << " | esférica " << (_useSphere ? "SI" : "no") << std::endl;
   }
 
+  // Avisa cuando la cámara esférica deja de usarse por poca luz o vuelve a usarse.
+  // Solo se avisa si el nuevo estado se mantiene 1 s, para no llenar la consola
+  // cuando el brillo ronda el umbral.
+  void reportSphereChange(double elapsed) {
+    namespace m = robot_config::mapping;
+    if (_sphereLastOk == _sphereReportedOk) {
+      _sphereChangeSinceS = -1.0;
+      return;
+    }
+    if (_sphereChangeSinceS < 0.0) {
+      _sphereChangeSinceS = elapsed;
+      return;
+    }
+    if (elapsed - _sphereChangeSinceS < 1.0) return;
+    _sphereReportedOk = _sphereLastOk;
+    _sphereChangeSinceS = -1.0;
+    std::cout << std::fixed << std::setprecision(1) << "[MISION] t=" << elapsed
+              << " s: cámara esférica "
+              << (_sphereLastOk ? "REACTIVADA" : "DESACTIVADA por poca luz") << " (luz_esf="
+              << _sphereMapper.lastFloorBrightness() << ", mínimo " << m::kSphereMinBrightness
+              << ")" << (_sphereLastOk ? "." : "; el mapa sigue solo con infrarrojos.")
+              << std::endl;
+  }
+
   // Cambia de fase y hace la preparación que necesita (búsqueda o vuelta).
   void enter(Phase phase, const Pose &pose) {
     _phase = phase;
@@ -175,6 +208,7 @@ private:
         _goalZ = robot_config::victims::kSearchZ;
         buildWaypoints(pose);
         _searchLeg = -1;  // se elige en searchStep
+        _looking = false;
         break;
       case Phase::kReturn: {
         _goalZ = robot_config::mission::kReturnGoalZ;
@@ -192,12 +226,25 @@ private:
   }
 
   // Imprime las candidatas a víctima con su estado.
+  // Diagnóstico: de qué cámara vienen las observaciones, a qué distancia mínima
+  // se vio y cuántas observaciones cercanas se descartaron por el filtro de 0,35 m.
   void printCandidates() const {
     std::cout << std::fixed << std::setprecision(2);
-    for (const VictimTracker::Candidate &c : _tracker.candidates())
-      std::cout << "[MISION]   candidata (" << c.x << ", " << c.z << ") vista en " << c.frames
+    const auto &cs = _tracker.candidates();
+    if (cs.empty()) std::cout << "[VICTIMAS]   (ninguna candidata)" << std::endl;
+    for (size_t i = 0; i < cs.size(); ++i) {
+      const VictimTracker::Candidate &c = cs[i];
+      std::cout << "[VICTIMAS]   #" << i << " (" << c.x << ", " << c.z << ") vista en " << c.frames
                 << " imágenes" << (_tracker.confirmed(c) ? " (confirmada)" : "")
-                << (c.rescued ? " RESCATADA" : "") << (c.failed ? " FALLIDA" : "") << std::endl;
+                << (c.rescued ? " RESCATADA" : "") << (c.failed ? " FALLIDA" : "")
+                << (c.duplicate ? " DUPLICADA" : "") << " | frontal=" << c.frontObs << " esférica=" << c.sphereObs
+                << " | dist. mín.=" << (c.minRange < 1e8 ? c.minRange : -1.0)
+                << " m | cercanas descartadas=" << c.gateRejects << std::endl;
+    }
+    const VictimTracker::Stats &s = _tracker.stats();
+    std::cout << "[VICTIMAS]   observaciones: aceptadas=" << s.accepted << " fuera de zona=" << s.zone
+              << " eco=" << s.shadow << " sobre rescatada=" << s.rescued
+              << " cercanas descartadas=" << s.gate << std::endl;
   }
 
   // Arma el barrido del pasillo del fondo, empezando por el extremo más cercano.
@@ -227,13 +274,18 @@ private:
     if (_tracker.rescuedCount() >= 2 || mustReturn(elapsed)) {
       if (_tracker.rescuedCount() < 2)
         std::cout << "[MISION] Poco tiempo: se vuelve sin buscar más." << std::endl;
+      if (_tracker.rescuedCount() < 2) printCandidates();
       enter(Phase::kReturn, pose);
       return WheelCommand::stop();
     }
     if (VictimTracker::Candidate *c = _tracker.nearestPending(pose.xM, pose.zM)) {
       _target = static_cast<int>(c - &_tracker.candidates()[0]);
       std::cout << std::fixed << std::setprecision(2) << "[MISION] Víctima confirmada en ("
-                << c->x << ", " << c->z << "): voy a por ella." << std::endl;
+                << c->x << ", " << c->z << "): voy a por ella."
+                << (_tracker.nearRescuedVictim(*c)
+                        ? " (está a menos de 1 m de una rescatada; no hay otra más lejos)"
+                        : "")
+                << std::endl;
       _navigator.setGoalPoint(c->x, c->z, v::kApproachRadiusM, pose);
       _gotoGoalX = c->x;
       _gotoGoalZ = c->z;
@@ -247,6 +299,7 @@ private:
       if (_nextWaypoint >= static_cast<int>(_waypoints.size())) {
         std::cout << "[MISION] Búsqueda agotada: se vuelve con " << _tracker.rescuedCount()
                   << " víctima(s)." << std::endl;
+        printCandidates();
         enter(Phase::kReturn, pose);
         return WheelCommand::stop();
       }
@@ -259,9 +312,36 @@ private:
                 << _waypoints[_searchLeg].first << ", " << _waypoints[_searchLeg].second << ")"
                 << std::endl;
     }
+    // Vuelta de observación en un extremo: girar en el sitio para que las dos
+    // cámaras miren la esquina. Si mientras gira se confirma una víctima o se
+    // acaba el tiempo, las comprobaciones de arriba la interrumpen.
+    if (_looking) {
+      _lookAccum += std::fabs(angles::wrap(pose.yawRad - _lookLastYaw));
+      _lookLastYaw = pose.yawRad;
+      if (_lookAccum >= v::kSearchLookRad || _timeS - _lookStartS > v::kSearchLookTimeoutS) {
+        _looking = false;
+        ++_nextWaypoint;
+        return WheelCommand::stop();
+      }
+      return WheelCommand::of(-v::kSpinSpeed, v::kSpinSpeed);  // giro a la izquierda
+    }
     const double dist = std::hypot(_waypoints[_searchLeg].first - pose.xM,
                                    _waypoints[_searchLeg].second - pose.zM);
     if (dist <= v::kSearchWaypointRadiusM + 0.1 || _timeS - _legStartS > v::kSearchLegTimeoutS) {
+      // Extremo lateral: mirar antes de seguir, salvo que el robot ya haya dado
+      // una vuelta completa cerca (el giro de 360° de un rescate en esa esquina).
+      bool alreadyLooked = false;
+      for (const auto &p : _fullTurnSpots)
+        if (std::hypot(p.first - pose.xM, p.second - pose.zM) < v::kSearchLookSkipRadiusM)
+          alreadyLooked = true;
+      if (std::fabs(_waypoints[_searchLeg].first) > 0.1 && !alreadyLooked) {
+        _looking = true;
+        _lookAccum = 0.0;
+        _lookLastYaw = pose.yawRad;
+        _lookStartS = _timeS;
+        std::cout << "[MISION] Extremo del barrido: vuelta para mirar la esquina." << std::endl;
+        return WheelCommand::stop();
+      }
       ++_nextWaypoint;
       return WheelCommand::stop();
     }
@@ -329,6 +409,7 @@ private:
         _spinDistance = dist;
         _spinAccum = 0.0;
         _spinLastYaw = pose.yawRad;
+        _spinStartFrame = _tracker.frame();
         _phase = Phase::kSpin;
         _phaseStartS = _timeS;
         std::cout << std::fixed << std::setprecision(2) << "[VICTIMA " << _tracker.rescuedCount() + 1
@@ -369,6 +450,17 @@ private:
         return WheelCommand::stop();
       }
       c.rescued = true;
+      _fullTurnSpots.push_back({pose.xM, pose.zM});  // ya miró alrededor desde aquí
+      // Candidatas pegadas a la rescatada que no se vieron en el giro: la misma
+      // víctima estimada desde lejos con error. Sin esto la misión iría a por ella
+      // y la "rescataría" dos veces.
+      for (int i : _tracker.discardDuplicatesOf(c, _spinStartFrame, v::kDuplicateAfterRescueM)) {
+        const VictimTracker::Candidate &d = _tracker.candidates()[i];
+        std::cout << std::fixed << std::setprecision(2) << "[VICTIMAS] candidata #" << i << " ("
+                  << d.x << ", " << d.z << ") descartada: a "
+                  << std::hypot(d.x - c.x, d.z - c.z)
+                  << " m de la rescatada y no vista en el giro, es la misma víctima." << std::endl;
+      }
       if (_useMap) _grid.markDisc(c.x, c.z, 0.3);
       _rescueTimes.push_back(elapsed);
       _rescueDistances.push_back(_spinDistance);
@@ -392,7 +484,40 @@ private:
       victim_detector::fromFront(*camera, pose, obs);
     if (_useSphere && sphereImage != nullptr && sphereTurn)
       victim_detector::fromSphere(sphereImage, pose, _sphereMapper.lastFloorBrightness(), obs);
-    for (const VictimObservation &o : obs) _tracker.add(o, pose.xM, pose.zM);
+    const double elapsed = _timeS - _startTimeS;
+    for (const VictimObservation &o : obs) {
+      const size_t before = _tracker.candidates().size();
+      const VictimAddResult r = _tracker.add(o, pose.xM, pose.zM);
+      const char *cam = o.source == 0 ? "frontal" : "esférica";
+      std::cout << std::fixed << std::setprecision(2);
+      // Diagnóstico: candidata nueva (dónde y desde qué cámara/distancia se creó).
+      if (_tracker.candidates().size() > before)
+        std::cout << "[VICTIMAS] t=" << std::setprecision(1) << elapsed << std::setprecision(2)
+                  << " nueva candidata #" << before << " en (" << o.x << ", " << o.z << ") vista con la "
+                  << cam << " a " << o.range << " m; robot en (" << pose.xM << ", " << pose.zM << ")"
+                  << std::endl;
+      // Diagnóstico: observación cercana descartada por caer a más de 0,35 m de la
+      // estimación. Se avisa la 1ª, 10ª, 50ª, 200ª y luego cada 500 por candidata.
+      if (r == VictimAddResult::kGate) {
+        const VictimTracker::GateEvent &g = _tracker.lastGate();
+        if (g.rejects == 1 || g.rejects == 10 || g.rejects == 50 || g.rejects == 200 ||
+            g.rejects % 500 == 0)
+          std::cout << "[VICTIMAS] t=" << std::setprecision(1) << elapsed << std::setprecision(2)
+                    << " cercana DESCARTADA (" << g.rejects << " para #" << g.candidate << "): la "
+                    << cam << " la ve en (" << g.obsX << ", " << g.obsZ << ") a " << g.rangeM
+                    << " m, pero la candidata está en (" << g.candX << ", " << g.candZ << "), a "
+                    << g.distM << " m (> " << robot_config::victims::kCloseGateM << ")" << std::endl;
+      }
+    }
+    // Diagnóstico: candidata que acaba de llegar a las imágenes de confirmación.
+    auto &cs = _tracker.candidates();
+    for (size_t i = 0; i < cs.size(); ++i)
+      if (!cs[i].announced && _tracker.confirmed(cs[i])) {
+        cs[i].announced = true;
+        std::cout << std::fixed << std::setprecision(1) << "[VICTIMAS] t=" << elapsed
+                  << std::setprecision(2) << " candidata #" << i << " CONFIRMADA en (" << cs[i].x
+                  << ", " << cs[i].z << ")" << std::endl;
+      }
     if (_phase == Phase::kOutbound || _phase == Phase::kSearch) _tracker.mergeDuplicates();
   }
 
@@ -533,15 +658,22 @@ private:
   SafetyGuard _safety;
   VictimTracker _tracker;
   int _sphereStep = 0, _sphereFrames = 0, _sphereValidFrames = 0;
+  bool _sphereLastOk = false;      // la última imagen de la esférica se usó en el mapa
+  bool _sphereReportedOk = true;   // último estado avisado en consola (se parte de "en uso")
+  double _sphereChangeSinceS = -1.0;
   double _nextLiveS = 0.0;
 
   // Búsqueda y rescate.
   std::vector<std::pair<double, double>> _waypoints;
   int _nextWaypoint = 0, _searchLeg = -1;
   double _legStartS = 0.0;
+  bool _looking = false;  // vuelta de observación en un extremo del barrido
+  double _lookAccum = 0.0, _lookLastYaw = 0.0, _lookStartS = 0.0;
+  std::vector<std::pair<double, double>> _fullTurnSpots;  // dónde se completó un giro de rescate
   int _target = -1;
   double _gotoGoalX = 0.0, _gotoGoalZ = 0.0;
   double _spinAccum = 0.0, _spinLastYaw = 0.0, _spinDistance = 0.0;
+  int _spinStartFrame = 0;  // imagen del rastreador al empezar el giro de rescate
   std::vector<double> _rescueTimes, _rescueDistances;
 
   // Métricas.
