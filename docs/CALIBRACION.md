@@ -35,16 +35,6 @@ Cada comprobación sale como `OK`, `REVISAR` (desviación moderada) o `FALLO`.
 | `kObstacleReflectionFactor` | 0,52 | Medido 0,527; se mantiene el teórico |
 | GPS | sin cuantizar | Los mundos usan `resolution -1` (el original era `resolution 3`; ver [CAMBIOS.md](CAMBIOS.md)) |
 
-## Modo monitor (comprobación manual)
-
-Con `monitor` en `controllerArgs`, el robot queda parado e imprime cada segundo:
-
-```
-[MONITOR] t=12.0 pose=(0.000, -9.050) yaw=180.0deg odom=(0.000, -9.050) gps=ok brujula=ok encoders=ok | IR m: F=-- FL=-- FR=-- L=0.12 R=-- BL=-- BR=--
-```
-
-Sirve para **arrastrar el robot en Webots** y ver cómo responden pose y sectores IR (`--` = nada detectado). Útil para depurar un mundo nuevo o un cambio en el PROTO.
-
 ## Qué comprobar si algo falla en la navegación
 
 | Síntoma | Posible causa | Qué mirar |

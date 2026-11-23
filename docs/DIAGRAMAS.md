@@ -17,22 +17,16 @@ flowchart TD
   A(["Inicio de Webots"]) --> B["Crear MotorController<br/>y SensorManager"]
   B --> C{"¿Sensores OK?"}
   C -- no --> X(["Termina con error"])
-  C -- sí --> D["parseOptions<br/>controllerArgs → modo + opciones<br/>nocam, nomap, nosphere, nolive, tag="]
+  C -- sí --> D["parseOptions<br/>controllerArgs → modo + opciones<br/>nocam, nomap, nosphere, nolive, nofiles, tag="]
   D --> E["Activar cámaras según el modo<br/>frontal → FloorSegmenter<br/>esférica → mapa"]
   E --> L
   subgraph LOOP ["Bucle principal: cada robot.step"]
     L["SensorManager.read<br/>→ SensorSnapshot"] --> M["Localizer.update<br/>→ Pose x, z, yaw"]
     M --> S{"Modo"}
     S -- mission --> R["RescueMission.step<br/>ida + víctimas + vuelta"]
-    S -- navigate --> O["OutboundRun.step<br/>solo la ida"]
     S -- calibrate --> K["SensorCalibration.step"]
-    S -- monitor --> N["Robot parado<br/>imprime pose y sectores"]
-    S -- capture --> P["Robot parado<br/>SnapshotRecorder guarda imágenes"]
     R --> W["WheelCommand<br/>izq, der en rad/s"]
-    O --> W
     K --> W
-    N --> W
-    P --> W
     W --> Q["MotorController.setWheelSpeeds"]
   end
   Q -- siguiente paso --> L
@@ -174,13 +168,11 @@ stateDiagram-v2
 | `planning/PathPlanner.h` | A* de 8 vecinos hasta una línea o un punto, con margen a paredes | `OccupancyGrid`, `Localizer` |
 | `navigation/GoalNavigator` | Máquina de estados de movimiento: alinear, avanzar, rodear obstáculos, recuperarse | `PathPlanner`, `OccupancyGrid`, `FloorSegmenter`, `SensorSnapshot` |
 | `mission/RescueMission.h` | Fases de la misión, reglas de tiempo, métricas y CSV de resultados | `GoalNavigator`, mapa, `VictimDetector`, `SafetyGuard` |
-| `mission/OutboundRun` | Prueba solo de la ida (modo `navigate`) | `GoalNavigator`, mapa, `SafetyGuard` |
 | **Actuación** | | |
 | `control/WheelCommand.h` | Par de velocidades izquierda/derecha: el idioma común de todos los módulos | — |
 | `control/SafetyGuard.h` | Filtro final: anula el avance si un IR frontal ve algo a menos de 6 cm | `SensorSnapshot` |
 | `control/MotorController` | Motores en modo velocidad, saturados a ±10 rad/s | `RobotConfig` |
 | **Herramientas** | | |
 | `calibration/SensorCalibration` | Rutina que mide GPS, brújula, encoders e IR (modo `calibrate`) | `Localizer`, `SensorSnapshot` |
-| `capture/SnapshotRecorder.h` | Guarda imágenes de ambas cámaras con su pose | `RunOutput`, `Localizer` |
 | `common/Angles.h`, `common/RunOutput.h` | Utilidades de ángulos y rutas de salida en `results/` | — |
 | `tools/live_map.py` | Visor externo del mapa en directo (lee `results/live_map.txt`) | — |

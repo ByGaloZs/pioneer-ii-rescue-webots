@@ -598,6 +598,8 @@ private:
               << " m | casi-contactos " << _nearContacts << " | frenos de emergencia "
               << _safety.interventions() << std::endl;
 
+    if (!run_output::filesEnabled()) return;  // "nofiles": solo consola
+
     std::ostringstream row;
     row << std::fixed << std::setprecision(2) << run_output::timestamp() << ','
         << run_output::resolveTag(_tag) << ',' << (_useCamera ? "cam" : "nocam") << ','
@@ -610,11 +612,12 @@ private:
         << ',' << path << ',' << _nearContacts << ',' << _safety.interventions() << ','
         << std::setprecision(3) << (_minIrM < 1e8 ? _minIrM : -1.0) << ','
         << std::setprecision(0)
-        << (_sphereFrames > 0 ? 100.0 * _sphereValidFrames / _sphereFrames : 0.0);
+        << (_sphereFrames > 0 ? 100.0 * _sphereValidFrames / _sphereFrames : 0.0) << ','
+        << (_useMap ? "map" : "nomap") << ',' << (_useSphere ? "sphere" : "nosphere");
     const std::string header =
         "when,tag,camera,start_x,start_z,start_yaw_deg,success,victims,time_s,outbound_s,"
         "victim1_s,victim2_s,return_s,victim1_dist_m,victim2_dist_m,lines_back,path_m,"
-        "near_contacts,emergency_stops,min_ir_m,sphere_valid_pct";
+        "near_contacts,emergency_stops,min_ir_m,sphere_valid_pct,map,sphere";
     const std::string csv = run_output::path("mission_results.csv");
     std::string firstLine;
     {
@@ -634,7 +637,10 @@ private:
       _grid.writeLive(run_output::path("live_map.txt"), elapsed, success ? "FIN_OK" : "FIN_TIEMPO",
                       localizer.pose(), _goalZ, _navigator.planner().path(), victimsLine());
     if (_useMap) {
-      const std::string mapFile = "map_" + run_output::resolveTag(_tag) + "_mission.txt";
+      // Un mapa por mundo y variante (map_NN_mission.txt, map_NN_mission_nocam.txt…).
+      const std::string mapFile = "map_" + run_output::resolveTag(_tag) + "_mission" +
+                                  (_useCamera ? "" : "_nocam") + (_useMap ? "" : "_nomap") +
+                                  (_useSphere ? "" : "_nosphere") + ".txt";
       _grid.writeAscii(run_output::path(mapFile), _navigator.planner().path());
       std::cout << "[RESULT] Mapa guardado en results/" << mapFile << std::endl;
     }

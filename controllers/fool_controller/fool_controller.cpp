@@ -2,39 +2,28 @@
 //
 // Modos (RobotConfig.h::kStartupMode o controllerArgs del robot en el .wbt):
 //   mission    (por defecto) misión completa: ida, buscar y rescatar las 2 víctimas
-//              (parar < 1 m, giro de 360°, mensaje) y volver a la salida. Acepta las
-//              mismas opciones que navigate (nocam, nomap, nosphere, nolive, tag=XX).
-//   navigate   solo la ida: ir hasta la línea amarilla del fondo y medir el resultado.
-//              Añadir "nocam" para navegar solo con infrarrojos, "nomap" para
-//              desactivar el mapa + A* (Bug puro), "nosphere" para no usar la
-//              cámara esférica en el mapa, "nolive" para no volcar el mapa
-//              en directo (results/live_map.txt, ver tools/live_map.py) y "tag=XX" para etiquetar a mano
-//              (opcional: si no se pone, se detecta el mundo).
+//              (parar < 1 m, giro de 360°, mensaje) y volver a la salida.
 //   calibrate  rutina que mide GPS, brújula, encoders e IR.
-//   capture    robot parado: guarda imágenes de las dos cámaras con su pose en
-//              results/captures/ cada vez que lo arrastras a otro sitio. Con
-//              "snap" también se guardan al navegar (cada 2 s, solo si se ha movido).
-//   monitor    robot parado; imprime cada segundo pose y sectores de distancia.
+//
+// Opciones de la misión (controllerArgs, una por línea):
+//   nocam      sin cámara frontal          nomap     sin mapa + A* (Bug puro)
+//   nosphere   sin cámara esférica         nolive    sin volcado del mapa en directo
+//   nofiles    no escribir nada en disco (ni CSV, ni mapas, ni log): solo consola
+//   tag=XX     etiqueta de la prueba (si falta, se detecta el mundo)
 
 #include <webots/Robot.hpp>
 
-#include <cmath>
-#include <cstring>
-#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <string>
 
 #include "calibration/SensorCalibration.h"
-#include "capture/SnapshotRecorder.h"
 #include "perception/SphericalView.h"
-#include "common/Angles.h"
 #include "common/ConsoleLog.h"
 #include "common/RunOutput.h"
 #include "config/RobotConfig.h"
 #include "control/MotorController.h"
 #include "localization/Localizer.h"
-#include "mission/OutboundRun.h"
 #include "mission/RescueMission.h"
 #include "perception/FloorSegmenter.h"
 #include "sensors/SensorManager.h"
@@ -48,7 +37,7 @@ struct Options {
   bool useMap = robot_config::kUseMapByDefault;
   bool liveMap = robot_config::kLiveMapByDefault;
   bool useSphere = robot_config::kUseSphereByDefault;
-  bool snap = false;  // guardar capturas de las cámaras también al navegar
+  bool files = true;  // "nofiles": no escribir CSV, mapas ni log
   std::string tag;
 };
 
@@ -58,11 +47,8 @@ Options parseOptions(int argc, char **argv) {
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "calibrate") options.mode = robot_config::StartupMode::kCalibrate;
-    else if (arg == "monitor") options.mode = robot_config::StartupMode::kMonitor;
     else if (arg == "mission") options.mode = robot_config::StartupMode::kMission;
-    else if (arg == "navigate") options.mode = robot_config::StartupMode::kNavigate;
-    else if (arg == "capture") options.mode = robot_config::StartupMode::kCapture;
-    else if (arg == "snap") options.snap = true;
+    else if (arg == "nofiles") options.files = false;
     else if (arg == "nosphere") options.useSphere = false;
     else if (arg == "sphere") options.useSphere = true;
     else if (arg == "nocam") options.useCamera = false;
@@ -76,36 +62,6 @@ Options parseOptions(int argc, char **argv) {
   return options;
 }
 
-// Imprime la distancia de un sector, o "--" si no detecta nada.
-void printSector(const char *name, const SectorReading &reading) {
-  std::cout << ' ' << name << '=';
-  if (reading.detected())
-    std::cout << std::setprecision(3) << reading.distanceM;
-  else
-    std::cout << "--";
-}
-
-// Imprime una línea de estado: pose, odometría, estado de sensores y sectores IR.
-void printMonitor(const SensorSnapshot &snapshot, const Localizer &localizer) {
-  const Pose &pose = localizer.pose();
-  const Pose &odometry = localizer.odometryPose();
-  std::cout << std::fixed << std::setprecision(1) << "[MONITOR] t=" << snapshot.timeS
-            << std::setprecision(3) << " pose=(" << pose.xM << ", " << pose.zM << ") yaw="
-            << std::setprecision(1) << angles::toDeg(pose.yawRad) << "deg"
-            << std::setprecision(3) << " odom=(" << odometry.xM << ", " << odometry.zM << ")"
-            << " gps=" << (snapshot.gpsValid ? "ok" : "NO")
-            << " brujula=" << (snapshot.compassValid ? "ok" : "NO")
-            << " encoders=" << (snapshot.encodersValid ? "ok" : "NO") << " | IR m:";
-  printSector("F", snapshot.sectors.front);
-  printSector("FL", snapshot.sectors.diagonalLeft);
-  printSector("FR", snapshot.sectors.diagonalRight);
-  printSector("L", snapshot.sectors.left);
-  printSector("R", snapshot.sectors.right);
-  printSector("BL", snapshot.sectors.rearLeft);
-  printSector("BR", snapshot.sectors.rearRight);
-  std::cout << std::endl;
-}
-
 }  // namespace
 
 // Punto de entrada: arma los módulos según las opciones y corre el ciclo de control.
@@ -117,13 +73,21 @@ int main(int argc, char **argv) {
 
   // Las opciones se leen primero para nombrar el log con el mundo.
   const Options options = parseOptions(argc, argv);
-  // Todo lo que se imprime en consola se copia también a logs/<mundo>_<fecha>.log.
-  console_log::Session log(run_output::resolveTag(options.tag));
-  if (log.active())
-    std::cout << "[STARTUP] Consola guardada en " << log.path().substr(6)  // sin "../../"
+  run_output::setFilesEnabled(options.files);
+  // Todo lo que se imprime en consola se copia también a logs/<mundo>_<fecha>.log
+  // (salvo con "nofiles").
+  std::unique_ptr<console_log::Session> log;
+  if (options.files) {
+    log.reset(new console_log::Session(run_output::resolveTag(options.tag)));
+    if (log->active())
+      std::cout << "[STARTUP] Consola guardada en " << log->path().substr(6)  // sin "../../"
+                << std::endl;
+    else
+      std::cerr << "[STARTUP] No se pudo crear el archivo de log; solo consola." << std::endl;
+  } else {
+    std::cout << "[STARTUP] nofiles: no se guarda nada en disco (ni CSV, ni mapas, ni log)."
               << std::endl;
-  else
-    std::cerr << "[STARTUP] No se pudo crear el archivo de log; solo consola." << std::endl;
+  }
 
   // Motores: se inicializan y se dejan detenidos.
   MotorController motors(&robot);
@@ -141,40 +105,23 @@ int main(int argc, char **argv) {
   std::cout << "[STARTUP] controllerArgs recibidos (" << argc - 1 << "):";
   for (int i = 1; i < argc; ++i) std::cout << " [" << argv[i] << "]";
   std::cout << std::endl;
-  // Banderas derivadas del modo (la misión incluye la navegación de ida).
   const bool mission = options.mode == robot_config::StartupMode::kMission;
-  const bool navigate = options.mode == robot_config::StartupMode::kNavigate || mission;
-  const bool capture = options.mode == robot_config::StartupMode::kCapture;
   std::cout << "[STARTUP] Modo: "
-            << (mission ? "misión completa (ida, víctimas, vuelta)"
-                : navigate ? "navegación (ida)"
-                : options.mode == robot_config::StartupMode::kCalibrate ? "calibración"
-                : capture ? "captura de cámaras (robot parado: arrástralo)"
-                          : "monitor")
-            << std::endl;
+            << (mission ? "misión completa (ida, víctimas, vuelta)" : "calibración") << std::endl;
 
   // Cámara frontal solo si se navega con ella.
   std::unique_ptr<FloorSegmenter> segmenter;
   webots::Camera *frontCamera = nullptr;
-  if (navigate && options.useCamera) {
+  if (mission && options.useCamera) {
     frontCamera = sensors.enableFrontCamera();
     if (frontCamera != nullptr)
       segmenter.reset(new FloorSegmenter(frontCamera->getWidth(), frontCamera->getHeight(),
                                          frontCamera->getFov()));
   }
 
-  // Capturas de las dos cámaras con la pose (modo "capture", o "snap" al navegar).
-  std::unique_ptr<SnapshotRecorder> recorder;
-  if (capture || (navigate && options.snap)) {
-    webots::Camera *front = frontCamera != nullptr ? frontCamera : sensors.enableFrontCamera();
-    webots::Camera *sphere = sensors.enableSphericalCamera();
-    recorder.reset(new SnapshotRecorder(front, sphere, robot_config::kCapturePeriodS,
-                                        /*onlyIfMoved=*/true));
-  }
-
-  // Cámara esférica para el mapa (solo al navegar con mapa).
+  // Cámara esférica: mapa y detección de víctimas (solo en la misión).
   webots::Camera *sphereCamera = nullptr;
-  if (navigate && options.useSphere && (options.useMap || mission)) {
+  if (mission && options.useSphere) {
     sphereCamera = sensors.enableSphericalCamera();
     if (sphereCamera != nullptr && !SphericalView::matches(sphereCamera->getWidth(),
                                                           sphereCamera->getHeight(),
@@ -184,7 +131,7 @@ int main(int argc, char **argv) {
       sphereCamera = nullptr;
     }
   }
-  if (navigate) {
+  if (mission) {
     // Estado de la cámara esférica al arrancar y, si no se usa, por qué.
     std::cout << "[STARTUP] Cámara esférica: ";
     if (sphereCamera != nullptr)
@@ -192,18 +139,17 @@ int main(int argc, char **argv) {
                 << robot_config::mapping::kSphereMinBrightness << "/255)";
     else if (!options.useSphere)
       std::cout << "DESACTIVADA por 'nosphere' en controllerArgs";
-    else if (!options.useMap && !mission)
-      std::cout << "DESACTIVADA: sin mapa ('nomap')";
     else
       std::cout << "DESACTIVADA: no se encontró o no tiene la geometría medida";
     std::cout << std::endl;
   }
 
-  // Módulos principales: localización, calibración, misión completa y solo ida.
+  // Módulos principales: localización, calibración y misión completa. El mapa en
+  // directo es un archivo: con "nofiles" no se vuelca.
   Localizer localizer;
   SensorCalibration calibration;
-  RescueMission rescue(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
-  OutboundRun outbound(options.useCamera && segmenter != nullptr, options.useMap, options.liveMap, sphereCamera != nullptr, options.tag);
+  RescueMission rescue(options.useCamera && segmenter != nullptr, options.useMap,
+                       options.liveMap && options.files, sphereCamera != nullptr, options.tag);
   // Siguiente instante en el que se imprime el estado (una vez por segundo).
   double nextStatusS = 0.0;
 
@@ -213,18 +159,10 @@ int main(int argc, char **argv) {
     localizer.update(snapshot);
 
     WheelCommand command = WheelCommand::stop();
-    bool printNow = false;
-    if (recorder && localizer.initialized()) recorder->update(snapshot.timeS, localizer.pose());
     switch (options.mode) {
       case robot_config::StartupMode::kCalibrate:
         if (!calibration.finished()) command = calibration.step(snapshot, localizer);
-        printNow = calibration.finished();
         break;
-      case robot_config::StartupMode::kMonitor:
-        printNow = true;
-        break;
-      case robot_config::StartupMode::kCapture:
-        break;  // robot parado; el recorder guarda una captura cada vez que se mueve
       case robot_config::StartupMode::kMission: {
         FreeSpaceProfile profile;
         if (segmenter != nullptr) profile = segmenter->process(frontCamera->getImage());
@@ -236,25 +174,9 @@ int main(int argc, char **argv) {
         }
         break;
       }
-      case robot_config::StartupMode::kNavigate: {
-        FreeSpaceProfile profile;
-        if (segmenter != nullptr) profile = segmenter->process(frontCamera->getImage());
-        command = outbound.step(snapshot, localizer, segmenter ? &profile : nullptr,
-                                sphereCamera ? sphereCamera->getImage() : nullptr, dtS);
-        if (!outbound.finished() && localizer.initialized() && snapshot.timeS >= nextStatusS) {
-          nextStatusS = snapshot.timeS + 1.0;
-          outbound.printStatus(snapshot, localizer);
-        }
-        break;
-      }
     }
     // Se envía a los motores el comando que decidió el modo activo.
     motors.setWheelSpeeds(command.leftRadPerSec, command.rightRadPerSec);
-
-    if (printNow && localizer.initialized() && snapshot.timeS >= nextStatusS) {
-      nextStatusS = snapshot.timeS + 1.0;
-      printMonitor(snapshot, localizer);
-    }
   }
 
   motors.stop();

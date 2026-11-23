@@ -10,7 +10,6 @@ sin contar las diferencias de formato que introduce Webots al guardar (decimales
 | Archivo | Cambio | ¿Afecta al comportamiento? |
 |---|---|---|
 | `worlds/final_scenario01…10.wbt` | GPS sin cuantizar: se elimina `resolution 3` (Webots usa entonces `-1`) | **Sí**: el robot conoce su posición con precisión |
-| `worlds/final_scenario01.wbt` | Pose de salida del robot: `(0; −9,05)` → `(3; −9)` | Sí: cambia el recorrido de ese mundo |
 | `worlds/final_scenario01…10.wbt` | `controllerArgs ["tag=NN"]` en el `Pioneer2` | No: solo etiqueta las filas del CSV y los mapas |
 | `worlds/final_scenario01…10.wbt` | `Viewpoint` con vista cenital | No: solo la cámara del editor |
 | `worlds/final_scenario06/07.wbt` | Cabecera `R2018b` → `R2020b` (Webots lo actualiza al guardar) | No |
@@ -34,23 +33,15 @@ de 20 rescates (ver [RESULTADOS.md](RESULTADOS.md)).
 solo de la odometría (encoders + brújula), calibrada en [CALIBRACION.md](CALIBRACION.md). Esa configuración **no se ha probado** con la misión
 completa.
 
-## 2. Pose de salida en el escenario 01
-
-**Original:** `translation 0 0 -9.05` (centro de la salida), igual que en los demás mundos.
-
-**Ahora:** `translation 3 0 -9`, mirando a +Z como el resto.
-
-**Por qué:** se movió para comprobar que el controlador no depende de salir del centro. Los resultados de s01 en [RESULTADOS.md](RESULTADOS.md)
-están medidos con esta pose. Para volver a la pose original basta con restaurar `translation 0 0 -9.05` en el nodo `Pioneer2`.
-
-## 3. `controllerArgs` y vista del editor
+## 2. `controllerArgs` y vista del editor
 
 - Cada mundo lleva `controllerArgs ["tag=NN"]`. El controlador ya detecta el mundo por el nombre del archivo; la etiqueta solo asegura que
   las filas del CSV y los mapas se llamen `s01`…`s10`. Vaciar el campo sigue ejecutando la misión completa (ver la tabla de argumentos del
   [README](../README.md)).
+- La pose de salida del robot es la original en los 10 mundos (`translation 0 0 -9.05`, mirando a +Z).
 - El `Viewpoint` se cambió a una vista cenital de la arena para seguir la misión. No afecta a la simulación.
 
-## 4. Robot (`Pioneer2_Robot.proto`)
+## 3. Robot (`Pioneer2_Robot.proto`)
 
 No se ha modificado: se usan los 16 sensores de distancia, sus alcances y sus `lookupTable` tal como vienen. El controlador invierte la tabla
 de cada sensor (`DistanceSensorCalibration`) y corrige la atenuación por color de Webots (`kObstacleReflectionFactor`); por eso el alcance
@@ -60,7 +51,7 @@ lejanos los detecta la cámara esférica.
 Si en el futuro se cambian, hay que documentarlo aquí y volver a ejecutar `calibrate`, porque `kObstacleReflectionFactor` y las distancias
 máximas de `RobotConfig.h` dependen de esas tablas.
 
-## 5. Interpretaciones del enunciado
+## 4. Interpretaciones del enunciado
 
 No son cambios en los archivos, pero condicionan cómo se mide el éxito:
 

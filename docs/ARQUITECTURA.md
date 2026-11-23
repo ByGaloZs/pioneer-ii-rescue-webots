@@ -8,16 +8,16 @@ Para una vista gráfica de las dependencias entre módulos ver [DIAGRAMAS.md](DI
 ## 1. Bucle principal (`fool_controller.cpp`)
 
 1. Crea el `Robot`, el `MotorController` y el `SensorManager`. Si los sensores no se inicializan, termina con error.
-2. Lee `controllerArgs` (`parseOptions`) y decide el **modo** (`mission` por defecto, `navigate`, `calibrate`, `monitor`, `capture`) y las opciones
-   (`nocam`, `nomap`, `nosphere`, `nolive`, `snap`, `tag=`). Imprime `[STARTUP] controllerArgs recibidos`.
-3. En `mission`/`navigate` activa la cámara frontal (si no hay `nocam`) y crea el `FloorSegmenter`; activa la cámara esférica (si no hay `nosphere`)
+2. Lee `controllerArgs` (`parseOptions`) y decide el **modo** (`mission` por defecto o `calibrate`) y las opciones
+   (`nocam`, `nomap`, `nosphere`, `nolive`, `nofiles`, `tag=`). Imprime `[STARTUP] controllerArgs recibidos`. Con `nofiles` no se crea el log ni se escribe
+   ningún archivo (`run_output::setFilesEnabled(false)`).
+3. En `mission` activa la cámara frontal (si no hay `nocam`) y crea el `FloorSegmenter`; activa la cámara esférica (si no hay `nosphere`)
    y comprueba que tiene la geometría medida (`SphericalView::matches`).
 4. En cada paso de simulación (`robot.step`):
    - `sensors.read()` → `SensorSnapshot`; `localizer.update(snapshot)` → pose.
    - Según el modo se calcula un `WheelCommand`:
      - `mission`: segmenta la imagen frontal y llama a `RescueMission::step`; imprime `[MISION]` cada segundo.
-     - `navigate`: igual con `OutboundRun::step`; imprime `[NAV]` cada segundo.
-     - `calibrate`: `SensorCalibration::step`. `monitor`: robot parado, imprime `[MONITOR]`. `capture`: robot parado, `SnapshotRecorder` guarda capturas.
+     - `calibrate`: `SensorCalibration::step`.
    - `motors.setWheelSpeeds` aplica el comando.
 5. Al terminar la simulación detiene los motores y apaga los sensores.
 
@@ -160,11 +160,8 @@ Máquina de estados de la misión completa; es el único sitio que conoce las me
 Reglas de decisión en `BUSCAR`: vuelve si ya hay 2 rescatadas, si `mustReturn` (tiempo transcurrido + reserva de vuelta + margen > 240 s, con reserva =
 `kReturnReserveFactor` × tiempo de ida + `kReturnReserveFixedS` y margen `kReturnSafetyMarginS` = 12 s) o si agotó los tres tramos de barrido; si no, va a la
 víctima confirmada más cercana. Cada paso: actualiza mapa (IR + esférica), detecta víctimas, comprueba el límite de 240 s, ejecuta la fase y filtra por `SafetyGuard`.
-Salida: `[MISION]`/`[VICTIMA]`/`[RESULT]` en consola, `results/mission_results.csv`, `results/map_<tag>_mission.txt` y `live_map.txt`.
-
-### `OutboundRun` (modo `navigate`, solo la ida)
-Prueba de la ida: meta `kOutboundGoalZ`, éxito en z ≥ 8,2, tiempo agotado a 240 s. `finish()` imprime `[RESULT]`, **añade una fila** a `results/outbound_results.csv`
-(si el encabezado cambia, aparta el archivo anterior como `outbound_results_old_<fecha>.csv`) y guarda `map_<tag>_<cam|nocam>.txt`.
+Salida: `[MISION]`/`[VICTIMA]`/`[RESULT]` en consola, `results/mission_results.csv`, `results/map_<tag>_mission[_nocam][_nomap][_nosphere].txt` y `live_map.txt`
+(los archivos no se escriben con `nofiles`).
 
 ## 9. Control (`control/`)
 
@@ -173,15 +170,15 @@ Prueba de la ida: meta `kOutboundGoalZ`, éxito en z ≥ 8,2, tiempo agotado a 2
   de avance (el robot aún puede girar o retroceder). Cuenta *episodios* (no pasos) en `interventions()`.
 - **`MotorController`**: pone los motores en modo velocidad (posición infinita), satura cada rueda a ±10 rad/s y expone `stop()`.
 
-## 10. Calibración y capturas (`calibration/SensorCalibration`)
+## 10. Calibración (`calibration/SensorCalibration`)
 
-Rutina de calibración (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md). `capture/SnapshotRecorder.h` guarda pares de imágenes (frontal y esférica) con la pose en `results/captures/` (modo `capture`, o `snap` al navegar).
+Rutina de calibración (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md).
 
 ## 11. Utilidades (`common/`)
 
 - `ConsoleLog.h`: copia `std::cout` y `std::cerr` a `logs/<mundo>_<fecha-hora>.log` sin dejar de mostrarlos en la consola de Webots (`console_log::Session`, creada al inicio de `main`).
 - `Angles.h`: `wrap`, `toDeg`, `toRad`, `yawTowards(x, z, tx, tz)`.
-- `RunOutput.h`: `directory()` (crea `../../results`, relativo al directorio del controlador que usa Webots), `path(nombre)`, `timestamp()` y
+- `RunOutput.h`: interruptor `filesEnabled()` (`nofiles`), `directory()` (crea `../../results`, relativo al directorio del controlador que usa Webots), `path(nombre)`, `timestamp()` y
   `resolveTag()` con prioridad `tag=` en `controllerArgs` > mundo detectado (variable `WEBOTS_WORLD` o la línea de órdenes del
   proceso padre de Webots) > `s??`.
 
@@ -193,7 +190,7 @@ Rutina de calibración (modo `calibrate`). Ver [CALIBRACION.md](CALIBRACION.md).
 | Cambiar cuándo se rodea un obstáculo o cómo se rodea | `navigation/GoalNavigator.cpp` (`goToGoal`, `followWall`) |
 | Cambiar los costes del camino (más margen a las paredes, etc.) | `config/RobotConfig.h` sección `mapping` y `planning/PathPlanner.h` (`buildCostmap`) |
 | Adaptar la cámara a una luz nueva | `config/RobotConfig.h` sección `camera` y `perception/FloorSegmenter.cpp` |
-| Añadir una métrica al CSV | `mission/RescueMission.h` (`finish`, `header` y `row` a la vez) o `mission/OutboundRun.cpp` |
+| Añadir una métrica al CSV | `mission/RescueMission.h` (`finish`, `header` y `row` a la vez) |
 | Cambiar el orden o las reglas de la misión (búsqueda, tiempo, parada) | `mission/RescueMission.h` y sección `victims`/`mission` de `RobotConfig.h` |
 | Ajustar la detección de víctimas | `perception/VictimDetector.h`, `perception/FloorSegmenter.cpp` y sección `victims` |
 | Cambiar cómo se pinta el mapa de la esférica | `mapping/SphericalMapper.h` y sección `mapping` (`kSphere*`) |

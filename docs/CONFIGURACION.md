@@ -111,11 +111,11 @@ falsos obstáculos.
 
 | Constante | Valor | Equivalente en `controllerArgs` |
 |---|---|---|
-| `kStartupMode` | `kMission` | `mission` (predeterminado), `navigate`, `calibrate`, `monitor`, `capture` |
+| `kStartupMode` | `kMission` | `mission` (predeterminado) o `calibrate` |
 | `kUseCameraByDefault` | `true` | `nocam` / `cam` |
 | `kUseMapByDefault` | `true` | `nomap` / `map` |
-| `kUseSphereByDefault` | `true` | `nosphere` / `sphere` (solo con mapa en `navigate`; la misión la usa también para las víctimas) |
+| `kUseSphereByDefault` | `true` | `nosphere` / `sphere` (mapa y detección de víctimas) |
 | `kLiveMapByDefault` | `true` | `nolive` / `live` |
-| `kLiveMapPeriodS` / `kCapturePeriodS` | 0,5 / 2,0 | Periodo del volcado del mapa / de las capturas (`snap`, `capture`) |
+| `kLiveMapPeriodS` | 0,5 | Periodo del volcado del mapa en directo |
 
-`controllerArgs` tiene prioridad sobre estos valores y no requiere recompilar. Además `tag=XX` etiqueta la prueba (si falta se detecta el mundo) y `snap` guarda capturas al navegar.
+`controllerArgs` tiene prioridad sobre estos valores y no requiere recompilar. Además `tag=XX` etiqueta la prueba (si falta se detecta el mundo) y `nofiles` desactiva todos los archivos (CSV, mapas, log).

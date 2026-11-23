@@ -71,8 +71,7 @@ CXX_SOURCES = fool_controller.cpp \
                  control/MotorController.cpp \
                  calibration/SensorCalibration.cpp \
                  perception/FloorSegmenter.cpp \
-                 navigation/GoalNavigator.cpp \
-                 mission/OutboundRun.cpp
+                 navigation/GoalNavigator.cpp
               
 ### Do not modify: this includes Webots global Makefile.include
 null :=

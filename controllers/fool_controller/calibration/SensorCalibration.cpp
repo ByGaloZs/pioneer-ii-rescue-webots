@@ -292,12 +292,14 @@ void SensorCalibration::analyseInfrared(std::ostringstream &out) {
     return;
   }
 
-  // CSV con las muestras brutas, por si hay que revisarlas.
-  std::ofstream csv(run_output::path("calibration_ir_samples.csv"));
-  csv << "time_s,travelled_m,ds0_response,ds0_m,ds0_valid,ds15_response,ds15_m,ds15_valid\n";
-  for (const IrSample &s : _irSamples)
-    csv << s.timeS << ',' << s.travelledM << ',' << s.ds0Response << ',' << s.ds0M << ','
-        << s.ds0Valid << ',' << s.ds15Response << ',' << s.ds15M << ',' << s.ds15Valid << '\n';
+  // CSV con las muestras brutas, por si hay que revisarlas (no con "nofiles").
+  if (run_output::filesEnabled()) {
+    std::ofstream csv(run_output::path("calibration_ir_samples.csv"));
+    csv << "time_s,travelled_m,ds0_response,ds0_m,ds0_valid,ds15_response,ds15_m,ds15_valid\n";
+    for (const IrSample &s : _irSamples)
+      csv << s.timeS << ',' << s.travelledM << ',' << s.ds0Response << ',' << s.ds0M << ','
+          << s.ds0Valid << ',' << s.ds15Response << ',' << s.ds15M << ',' << s.ds15Valid << '\n';
+  }
 
   const IrSample &first = _irSamples.front();
   const double firstSeen = std::min(first.ds0Valid ? first.ds0M : 1e9,
@@ -459,6 +461,7 @@ void SensorCalibration::writeReport(const SensorSnapshot &snapshot, const Locali
   out << "========================================================\n";
 
   std::cout << out.str() << std::flush;
+  if (!run_output::filesEnabled()) return;  // "nofiles": el informe solo sale por consola
   std::ofstream file(run_output::path("calibration_report.txt"));
   file << out.str();
   std::cout << "[CALIB] Informe guardado en results/calibration_report.txt"

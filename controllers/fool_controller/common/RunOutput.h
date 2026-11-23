@@ -16,10 +16,19 @@
 // actual, así que "../../results" es <proyecto>/results (junto a worlds/).
 namespace run_output {
 
+// Interruptor global de archivos: con "nofiles" en controllerArgs no se escribe
+// nada en disco (ni CSV, ni mapas, ni log); solo queda la consola.
+inline bool &filesEnabledFlag() {
+  static bool enabled = true;
+  return enabled;
+}
+inline bool filesEnabled() { return filesEnabledFlag(); }
+inline void setFilesEnabled(bool enabled) { filesEnabledFlag() = enabled; }
+
 // Crea (si hace falta) y regresa la carpeta de resultados.
 inline std::string directory() {
   const std::string dir = "../../results";
-  ::mkdir(dir.c_str(), 0755);  // si ya existe no pasa nada
+  if (filesEnabled()) ::mkdir(dir.c_str(), 0755);  // si ya existe no pasa nada
   return dir;
 }
 

@@ -16,7 +16,7 @@ volver a la salida en menos de 240 s.
 
 **Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** **10/10 misiones completas**: los 10 robots volvieron antes del límite y se rescataron **20/20 víctimas**, comprobadas contra la posición real de cada víctima (el robot giró a 0,69–0,83 m de ella). Tiempo total medio: **129,4 s**; mínimo: **96,1 s** (s04); máximo: **199,3 s** (s03, con 40,7 s de margen). El CSV es `results/mission_results.csv` y la consola de cada ejecución queda en `logs/` (ninguno se versiona); repetir la tanda con el mismo código da las mismas cifras (simulación determinista). Detalle en [docs/RESULTADOS.md](docs/RESULTADOS.md).
 
-**Cambios sobre los archivos de la práctica** (permitidos si se documentan): GPS sin cuantizar (`resolution -1`) en los 10 mundos, salida de s01 movida a (3, −9) y `controllerArgs tag=NN`. El PROTO del robot no se ha tocado. Detalle y cómo deshacerlos en [docs/CAMBIOS.md](docs/CAMBIOS.md).
+**Cambios sobre los archivos de la práctica** (permitidos si se documentan): GPS sin cuantizar (`resolution -1`) en los 10 mundos y `controllerArgs tag=NN`; la salida del robot es la original en todos. El PROTO del robot no se ha tocado. Detalle y cómo deshacerlos en [docs/CAMBIOS.md](docs/CAMBIOS.md).
 
 ## Inicio rápido
 
@@ -27,8 +27,8 @@ volver a la salida en menos de 240 s.
 2. Compilar `fool_controller` (*Build* en el editor de Webots, o `make` dentro de `controllers/fool_controller/` con `WEBOTS_HOME` definida).
    Tras cambiar cabeceras conviene hacer *Clean* y recompilar. Los archivos nuevos del controlador deben estar en `CXX_SOURCES` del `Makefile`
    (hoy solo `.cpp`; las cabeceras no hacen falta).
-3. En el árbol de escena, `Pioneer2` → `controllerArgs`: un argumento por línea. **Vacío = misión completa.** Ejemplos: `tag=s01`; `navigate`
-   (solo la ida); `calibrate`; `capture`. Lista completa abajo.
+3. En el árbol de escena, `Pioneer2` → `controllerArgs`: un argumento por línea. **Vacío = misión completa.** Ejemplos: `nosphere`; `calibrate`;
+   `nofiles`. Lista completa abajo.
 4. Pulsar Play. Mensajes en consola: `[MISION]`, `[VICTIMA n]`, `[RESULT]`.
 5. Resultados en `results/` (se crea sola junto a `worlds/`; no se versiona). La salida de consola de cada ejecución se guarda además en
    `logs/<mundo>_<fecha-hora>.log` (tampoco se versiona); la primera línea `[STARTUP] Consola guardada en …` dice el archivo.
@@ -39,10 +39,10 @@ volver a la salida en menos de 240 s.
 | Argumento | Efecto |
 |---|---|
 | *(vacío)* o `mission` | **Misión completa** (modo por defecto, `kStartupMode = kMission`) → `results/mission_results.csv` |
-| `navigate` | Solo la ida → `results/outbound_results.csv` |
-| `calibrate` / `monitor` / `capture` | Calibración / robot parado imprimiendo sensores / capturas de las cámaras (**`capture` borra las capturas anteriores** de `results/captures/` al empezar) |
+| `calibrate` | Rutina de calibración de sensores → `results/calibration_report.txt` |
 | `nocam`, `nomap`, `nosphere` | Sin cámara frontal / sin mapa+A* (Bug puro) / sin cámara esférica (ni en el mapa ni en las observaciones de víctimas del modo `mission`; para comparar) |
-| `nolive`, `snap` | Sin volcado del mapa en directo / capturas de cámaras mientras navega |
+| `nolive` | Sin volcado del mapa en directo |
+| `nofiles` | No escribe nada en disco (ni CSV, ni mapas, ni log): solo la consola |
 | `tag=XX` | Etiqueta de la prueba; si falta se detecta el mundo (`s01`…`s10`) o sale `s??` |
 
 ## Documentación
@@ -56,7 +56,7 @@ volver a la salida en menos de 240 s.
 | [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | Todos los parámetros de `RobotConfig.h` |
 | [docs/CALIBRACION.md](docs/CALIBRACION.md) | Rutina de calibración de sensores y valores obtenidos |
 | [docs/RESULTADOS.md](docs/RESULTADOS.md) | Resultados, columnas de los CSV, mapas ASCII, qué falta |
-| [docs/CAMBIOS.md](docs/CAMBIOS.md) | Cambios respecto a los mundos y el robot de la práctica (GPS, salida de s01…) y supuestos |
+| [docs/CAMBIOS.md](docs/CAMBIOS.md) | Cambios respecto a los mundos y el robot de la práctica (GPS…) y supuestos |
 
 ## Estructura del repositorio
 
@@ -68,14 +68,14 @@ controllers/fool_controller/   controlador (C++); Makefile de Webots
   perception/                    cámara frontal (FloorSegmenter), esférica (SphericalView), víctimas (VictimDetector.h)
   mapping/ planning/             mapa de ocupación (OccupancyGrid.h, SphericalMapper.h) y A* (PathPlanner.h)
   navigation/                    GoalNavigator: seguir el plan, rodear obstáculos, atascos
-  mission/                       RescueMission.h (misión completa) y OutboundRun (prueba de la ida)
-  control/ calibration/ capture/ motores y seguridad, rutina de calibración, capturas de cámaras
+  mission/                       RescueMission.h (misión completa)
+  control/ calibration/          motores y seguridad, rutina de calibración
   common/                        ángulos y carpeta de resultados
 docs/                          guías (tabla anterior)
 protos/Pioneer2_Robot.proto    robot (original, sin cambios)
 tools/live_map.py              visor en directo del mapa y de las víctimas
 worlds/                        escenarios final_scenario01…10
-results/                       salidas de las pruebas (CSV, mapas, capturas); no versionado
+results/                       salidas de las pruebas (CSV, mapas); no versionado
 ```
 
 Casi todo el código nuevo son cabeceras (`.h`) que no necesitan tocar el `Makefile`; los `.cpp` están listados en `CXX_SOURCES`.

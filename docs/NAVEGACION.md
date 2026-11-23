@@ -102,7 +102,7 @@ un giro lento de 1 s para no entrar en bucle.
 
 ## Mapa y plan
 
-- **Cada paso** `RescueMission` (o `OutboundRun`) llama a `OccupancyGrid::update` con la pose y los 16 IR (ver [ARQUITECTURA.md](ARQUITECTURA.md), sección 5).
+- **Cada paso** `RescueMission` llama a `OccupancyGrid::update` con la pose y los 16 IR (ver [ARQUITECTURA.md](ARQUITECTURA.md), sección 5).
 - **Replanificación** (`replanIfNeeded`): cada 0,3 s, y además cuando el mapa cambia (una celda pasa a ocupada/libre), como máximo cada 0,1 s. En los resultados,
   el número de replanificaciones (`replans`) va de ~190 a ~500 según el mundo (ida en Webots, 10 mundos).
 - Al tocar un obstáculo se replanifica **de inmediato** para decidir por qué lado rodearlo.
@@ -137,27 +137,10 @@ tres funciones se omiten (en el mundo s03 la cámara fue válida solo el 85 % de
 
 ## Cómo depurar una ejecución
 
-En el modo `navigate` la consola imprime cada segundo:
-
-```
-[NAV] t=57.0 FOLLOW_WALL_L pos=(0.31, 2.40) yaw=170 restante=6.1 libre_cam=1.9 luz=88 plan=ok ocupadas=412 F=0.15
-```
-
-| Campo | Significado |
-|---|---|
-| `t` | segundos desde el inicio de la prueba |
-| estado | `ALIGN`, `GO_TO_GOAL`, `FOLLOW_WALL_L/R`, `REVERSE_OUT`, `TURN_AROUND`, `RECOVER` |
-| `pos`, `yaw` | pose (m, grados) |
-| `restante` | longitud del plan (con mapa) o distancia en z hasta la meta |
-| `libre_cam` | espacio libre visto por la cámara en el rumbo elegido (m) |
-| `luz` | brillo del suelo en la cámara (0–255) |
-| `plan` / `ocupadas` | si hay plan válido / celdas ocupadas en el mapa |
-| `F` | distancia del sector frontal (`--` si no detecta nada) |
-
-En el modo `mission` la línea es `[MISION] t=… <fase> pos=(x, z) yaw=… victimas vistas=… rescatadas=… esf=ok luz_esf=… plan=ok restante=…`, donde `esf` es
+La consola imprime cada segundo una línea de estado: `[MISION] t=… <fase> pos=(x, z) yaw=… victimas vistas=… rescatadas=… esf=ok luz_esf=… plan=ok restante=…`, donde `esf` es
 `ok` (la esférica se usa), `OSCURA` (la última imagen se descartó por poca luz, `luz_esf` < 25) u `off` (desactivada desde el arranque) y `<fase>` es `IDA`, `BUSCAR`,
 `IR_A_VICTIMA`, `ACERCAR`, `GIRO_360` o `VUELTA`. Además se imprimen los eventos (`[MISION] Víctima confirmada…`, `[VICTIMA n] …`) y la lista de candidatas al terminar la ida.
-Al arrancar, `[STARTUP] Cámara esférica:` dice si se usa o por qué no (`nosphere`, `nomap`, cámara no encontrada). Durante la misión,
+Al arrancar, `[STARTUP] Cámara esférica:` dice si se usa o por qué no (`nosphere`, cámara no encontrada). Durante la misión,
 `[MISION] t=… s: cámara esférica DESACTIVADA por poca luz` / `REACTIVADA` avisa cuando cambia de estado y se mantiene al menos 1 s.
 
 **Diagnóstico de víctimas** (líneas `[VICTIMAS]`):

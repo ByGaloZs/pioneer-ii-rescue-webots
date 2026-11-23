@@ -232,12 +232,9 @@ constexpr double kTrustedRangeM = 3.5;       // más allá (niebla) no se confí
 
 // ---------------------------------------------------------------------------
 // Modo de arranque del controlador. Se puede forzar con controllerArgs del
-// robot: "calibrate", "monitor", "capture", "navigate", "mission" y, con navigate/mission, "nocam" para
-// desactivar la ayuda de la cámara y "tag=XX" para etiquetar la prueba.
+// robot: "mission" (misión completa) o "calibrate" (rutina de calibración).
 // ---------------------------------------------------------------------------
-enum class StartupMode { kCalibrate, kMonitor, kNavigate, kCapture, kMission };
-// kMission = misión completa (ida, rescate de las víctimas y vuelta). "navigate"
-// deja solo la prueba de la ida.
+enum class StartupMode { kCalibrate, kMission };
 constexpr StartupMode kStartupMode = StartupMode::kMission;
 // Valores por defecto de las opciones; se cambian con controllerArgs.
 constexpr bool kUseCameraByDefault = true;
@@ -248,10 +245,6 @@ constexpr bool kUseMapByDefault = true;
 constexpr bool kLiveMapByDefault = true;
 // La cámara esférica alimenta el mapa (solo con mapa activado). "nosphere" la apaga.
 constexpr bool kUseSphereByDefault = true;
-// Capturas de las cámaras (modo "capture", o "snap" durante navigate): cada
-// kCapturePeriodS guarda results/captures/NNNN_front.png y NNNN_sphere.png más
-// una fila en results/captures/index.csv con la pose del robot.
-constexpr double kCapturePeriodS = 2.0;
 constexpr double kLiveMapPeriodS = 0.5;
 
 }  // namespace robot_config

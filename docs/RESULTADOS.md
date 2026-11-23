@@ -9,14 +9,15 @@ no se pueden verificar con los archivos actuales. Para comprobarlas hay que repe
 
 | Prueba | Estado |
 |---|---|
-| Ida con mapa + esférica + cámara, 10 mundos | **10/10** (tabla 1) |
+| Ida con mapa + esférica + cámara, 10 mundos | **10/10** (tabla 1, histórica: modo `navigate`, ya retirado) |
 | Ida sin esférica (solo IR + cámara), 10 mundos | Hecha antes de la esférica (tabla 2, histórica) |
 | **Misión completa** (ida + víctimas + vuelta), 10 mundos | **10/10 misiones completas**: vuelta a tiempo y **20/20 víctimas**, verificadas contra la posición real (tabla 3) |
 
-## 1. Ida en Webots, versión actual
+## 1. Ida en Webots (histórica)
 
 Configuración: cámara frontal + mapa + A\* + cámara esférica en el mapa, valores por defecto, un intento por mundo, modo `navigate`.
-Origen: `results/outbound_results.csv` (filas `sphere`).
+Origen: `results/outbound_results.csv` (filas `sphere`). El modo `navigate` se ha retirado del controlador (la misión completa ya mide la ida,
+columna `outbound_s`), así que esta tabla se conserva como referencia y no se puede repetir. En s01 el robot salía entonces de (3, −9).
 
 | Mundo | Inicio (x, z) | Éxito | Tiempo (s) | Recorrido (m) | Líneas | Obstáculos | Cambios de lado | Casi-contactos | Esférica válida | Replanif. |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -66,6 +67,8 @@ Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:
 | s09 | (0,00, −9,05) | sí | 2/2 | 122,7 | 39,6 | 59,8 | 87,0 | 35,6 | 0,79 / 0,79 | 7 | 4 |
 | s10 | (0,00, −9,05) | sí | 2/2 | 121,9 | 65,5 | 75,4 | 86,0 | 35,8 | 0,80 / 0,83 | 7 | 21 |
 
+En esta tanda s01 salía de (3, −9); la salida ha vuelto a la original (0, −9,05) en todos los mundos, así que s01 se repetirá en la tanda final.
+
 Resumen: vuelta a tiempo en 10/10 · **20/20 víctimas** · **misión completa en 10/10** · tiempo total medio 129,4 s (mín. 96,1 s en s04, máx. 199,3 s en s03).
 
 **Verificación de los rescates.** Para cada giro de 360° se tomó la posición del robot de la consola (`logs/`) y se midió su distancia a la víctima **real** (posición
@@ -102,15 +105,15 @@ saturadas, no choques confirmados.
 
 ## Cómo reproducir
 
-1. Abrir `worlds/final_scenarioNN.wbt`, compilar y pulsar Play. Sin `controllerArgs` se ejecuta la **misión completa**; con `navigate` solo la ida.
-2. Esperar `[RESULT] MISION COMPLETA` (misión) o `[RESULT] IDA COMPLETADA` (`navigate`). Si se agotan los 240 s aparece `TIEMPO AGOTADO`.
-3. El resultado se **añade como una fila** al CSV del modo (misión: `results/mission_results.csv`; ida: `results/outbound_results.csv`). Si cambia el encabezado, el archivo
-   anterior se aparta como `*_old_<fecha>.csv` y se crea uno nuevo.
+1. Abrir `worlds/final_scenarioNN.wbt`, compilar y pulsar Play. Sin más `controllerArgs` que `tag=NN` se ejecuta la **misión completa**.
+2. Esperar `[RESULT] MISION COMPLETA`. Si se agotan los 240 s aparece `TIEMPO AGOTADO`.
+3. El resultado se **añade como una fila** a `results/mission_results.csv`. Si cambia el encabezado, el archivo anterior se aparta como
+   `mission_results_old_<fecha>.csv` y se crea uno nuevo. Con `nofiles` no se escribe nada (ni CSV, ni mapa, ni log).
 
 La consola completa de cada ejecución queda en `logs/<mundo>_<fecha-hora>.log` (un archivo por ejecución, no se versiona): ahí están las líneas
 `[MISION]`, `[VICTIMAS]` y `[RESULT]` para revisar qué pasó.
 
-Variantes para comparar: `nocam`, `nomap`, `nosphere` y, opcionalmente, `tag=s03-nocam` para distinguir las filas.
+Variantes para comparar: `nocam`, `nomap`, `nosphere`. El CSV las distingue (columnas `camera`, `map`, `sphere`) y cada una guarda su propio mapa.
 
 ## Columnas de `mission_results.csv` (modo `mission`)
 
@@ -127,27 +130,11 @@ Variantes para comparar: `nocam`, `nomap`, `nosphere` y, opcionalmente, `tag=s03
 | `path_m` | Distancia recorrida según los encoders |
 | `near_contacts`, `emergency_stops`, `min_ir_m` | Episodios con IR < 3 cm o saturado; episodios del `SafetyGuard`; distancia IR mínima vista |
 | `sphere_valid_pct` | % del tiempo que la esférica fue utilizable |
+| `map`, `sphere` | Variante: `map`/`nomap` y `sphere`/`nosphere` |
 
-## Columnas de `outbound_results.csv` (modo `navigate`)
+## Mapas ASCII (`results/map_<mundo>_mission[_nocam][_nomap][_nosphere].txt`)
 
-| Columna | Significado |
-|---|---|
-| `when`, `tag`, `camera`, `start_x`, `start_z`, `start_yaw_deg` | Como arriba |
-| `success` / `time_s` | 1 si cruzó la línea final (z ≥ 8,2) / tiempo simulado |
-| `max_z` / `lines` | Máximo z alcanzado / líneas cruzadas de 8 (7 negras de z = −6 a 6 y la amarilla en z = 8) |
-| `path_m` | Distancia recorrida según los encoders |
-| `obstacles` | Veces que se empezó a rodear un obstáculo (`FOLLOW_WALL`) |
-| `side_switches` | Medias vueltas para rodear por el otro lado o por plan (callejones) |
-| `stuck_recoveries` | Veces que se activó `RECOVER` por atasco |
-| `emergency_stops` / `near_contacts` / `min_ir_m` | Como arriba |
-| `map` | `map` o `nomap` |
-| `cam_valid_pct` | % de fotogramas con la cámara frontal utilizable (0 si no se usó) |
-| `replans` | Número de veces que se ejecutó el A\* |
-| `sphere` / `sphere_valid_pct` | `sphere` o `nosphere` / % del tiempo que la esférica fue utilizable |
-
-## Mapas ASCII (`results/map_<mundo>_<cam|nocam|mission>.txt`)
-
-Dibujo de 100 × 200 caracteres (10 cm por carácter), con **arriba = +z** (víctimas) e **izquierda = −x**. La misión guarda `map_<mundo>_mission.txt` al terminar
+Dibujo de 100 × 200 caracteres (10 cm por carácter), con **arriba = +z** (víctimas) e **izquierda = −x**. La misión guarda `map_<mundo>_mission.txt` (con sufijo si es una variante) al terminar
 (con la ruta de vuelta como último plan).
 
 | Símbolo | Significado |
@@ -158,14 +145,14 @@ Dibujo de 100 × 200 caracteres (10 cm por carácter), con **arriba = +z** (víc
 | `*` | Último plan A\* calculado |
 | ` ` | Desconocido |
 
-Si el archivo se llama `map_s??_...`, el controlador no pudo detectar el mundo; usar `tag=sNN` en `controllerArgs`. Cada ejecución del mismo mundo y modo sobrescribe su mapa.
+Si el archivo se llama `map_s??_...`, el controlador no pudo detectar el mundo; usar `tag=sNN` en `controllerArgs`. Cada ejecución del mismo mundo y variante sobrescribe su mapa.
 
 ## Pendiente
 
 | Prueba | Estado |
 |---|---|
-| Ida con cámara + mapa + esférica, 10 mundos | Hecho (tabla 1) |
-| Ida sin cámara (`nocam`) y sin mapa (`nomap`), 10 mundos | Pendiente (comparación) |
+| Comparación `nocam` / `nomap` / `nosphere` con la misión completa, 10 mundos | Pendiente (tanda final) |
+| Tanda final con la salida original en s01 | Pendiente |
 | Misión completa en Webots, 10 mundos | Hecha (tabla 3): 10/10 misiones y 20/20 víctimas |
 | Distancia real robot–víctima en cada giro | Hecha (tabla 3): 0,69–0,83 m |
 | Colisiones | Pendiente: los casi-contactos son lecturas IR; hay que revisarlo visualmente en Webots |
