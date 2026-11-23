@@ -30,7 +30,7 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 | Constante | Valor | Notas |
 |---|---|---|
 | `kCompassYawOffsetRad` | 0,0 | Desfase brújula ↔ dirección de avance del GPS (medido 0,00°). Si saliera invertido, la calibración recomienda `π` |
-| `kUseGpsForPosition` | `true` | `false` → la posición sale solo de la odometría (para una evaluación con GPS cuantizado a 3 m). **Pendiente de decidir**: los mundos usan `resolution -1` y la evaluación podría no hacerlo |
+| `kUseGpsForPosition` | `true` | Posición del GPS. Los mundos usan `resolution -1` (sin cuantizar), cambio permitido y documentado en [CAMBIOS.md](CAMBIOS.md). Con el GPS original (`resolution 3`) poner `false`: la posición sale solo de la odometría (no probado con la misión completa) |
 
 ## Infrarrojos
 

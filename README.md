@@ -11,12 +11,12 @@ volver a la salida en menos de 240 s.
 | Sensores | Sensores configurados y calibrados (GPS, brújula, encoders, 16 IR) | **Hecho** (escenario 01) |
 | Ida | Ida: mapa + A* (IR + cámara esférica), Bug reactivo, guía con cámara frontal | **Validado en Webots**: 10/10 mundos, 33–100 s (un intento por mundo) |
 | Vuelta | Vuelta a la salida (A* que prefiere lo ya recorrido) | **Validado en Webots**: retorno completado en 10/10 mundos |
-| Víctimas | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **Probado en Webots en los 10 mundos**: 2/2 víctimas en 8; 1/2 en s09 y 0/2 en s03 |
+| Víctimas | Víctimas: detección, parada a < 1 m, giro 360° y mensaje | **Validado en Webots**: 20/20 víctimas en los 10 mundos, giro a 0,69–0,83 m de la víctima real |
 | Misión | Misión integral en los 10 escenarios | **Probada en Webots**: 10/10 misiones completas (vuelta a tiempo y 2/2 víctimas) |
 
 **Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** **10/10 misiones completas**: los 10 robots volvieron antes del límite y se rescataron **20/20 víctimas**, comprobadas contra la posición real de cada víctima (el robot giró a 0,69–0,83 m de ella). Tiempo total medio: **129,4 s**; mínimo: **96,1 s** (s04); máximo: **199,3 s** (s03, con 40,7 s de margen). El CSV es `results/mission_results.csv` y la consola de cada ejecución queda en `logs/` (ninguno se versiona); repetir la tanda con el mismo código da las mismas cifras (simulación determinista). Detalle en [docs/RESULTADOS.md](docs/RESULTADOS.md).
 
-Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGURACION.md](docs/CONFIGURACION.md)).
+**Cambios sobre los archivos de la práctica** (permitidos si se documentan): GPS sin cuantizar (`resolution -1`) en los 10 mundos, salida de s01 movida a (3, −9) y `controllerArgs tag=NN`. El PROTO del robot no se ha tocado. Detalle y cómo deshacerlos en [docs/CAMBIOS.md](docs/CAMBIOS.md).
 
 ## Inicio rápido
 
@@ -56,6 +56,7 @@ Pendiente conocido: la resolución del GPS en la evaluación (ver [docs/CONFIGUR
 | [docs/CONFIGURACION.md](docs/CONFIGURACION.md) | Todos los parámetros de `RobotConfig.h` |
 | [docs/CALIBRACION.md](docs/CALIBRACION.md) | Rutina de calibración de sensores y valores obtenidos |
 | [docs/RESULTADOS.md](docs/RESULTADOS.md) | Resultados, columnas de los CSV, mapas ASCII, qué falta |
+| [docs/CAMBIOS.md](docs/CAMBIOS.md) | Cambios respecto a los mundos y el robot de la práctica (GPS, salida de s01…) y supuestos |
 
 ## Estructura del repositorio
 
@@ -71,7 +72,7 @@ controllers/fool_controller/   controlador (C++); Makefile de Webots
   control/ calibration/ capture/ motores y seguridad, rutina de calibración, capturas de cámaras
   common/                        ángulos y carpeta de resultados
 docs/                          guías (tabla anterior)
-protos/Pioneer2_Robot.proto    robot (no se modifica)
+protos/Pioneer2_Robot.proto    robot (original, sin cambios)
 tools/live_map.py              visor en directo del mapa y de las víctimas
 worlds/                        escenarios final_scenario01…10
 results/                       salidas de las pruebas (CSV, mapas, capturas); no versionado
@@ -85,7 +86,7 @@ Casi todo el código nuevo son cabeceras (`.h`) que no necesitan tocar el `Makef
 - **Orientación (yaw):** el ángulo de `rotation 0 1 0 a` de Webots, `atan2(c[2], c[0])` con la brújula. `yaw = π` mira a +Z (víctimas), `yaw = 0` a −Z (salida);
   girar a la izquierda lo aumenta; avance = `(−sin yaw, −cos yaw)`.
 - **Infrarrojos:** alcance nominal 0,4 m, pero Webots atenúa según el color; con obstáculos cian el alcance real es ≈ 0,21 m.
-- **GPS:** los mundos usan `resolution -1` (sin cuantizar). Si la evaluación usara el GPS original (cuantizado a 3 m) habría que poner `kUseGpsForPosition = false`; **sin tratar todavía**.
+- **GPS:** los mundos usan `resolution -1` (sin cuantizar; el original tenía `resolution 3`). Es un cambio permitido y documentado en [docs/CAMBIOS.md](docs/CAMBIOS.md). Con el GPS original habría que poner `kUseGpsForPosition = false` (solo odometría, no probado con la misión completa).
 
 ## Misión completa en una pantalla
 

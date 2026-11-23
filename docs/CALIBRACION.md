@@ -33,7 +33,7 @@ Cada comprobación sale como `OK`, `REVISAR` (desviación moderada) o `FALLO`.
 | `kWheelSeparationM` | 0,3606 | Medida efectiva en giros de ±360°; la geométrica es 0,3206 m |
 | `kCompassYawOffsetRad` | 0,0 | Desfase 0,00° entre brújula y dirección de avance |
 | `kObstacleReflectionFactor` | 0,52 | Medido 0,527; se mantiene el teórico |
-| GPS | sin cuantizar | Los mundos usan `resolution -1` |
+| GPS | sin cuantizar | Los mundos usan `resolution -1` (el original era `resolution 3`; ver [CAMBIOS.md](CAMBIOS.md)) |
 
 ## Modo monitor (comprobación manual)
 

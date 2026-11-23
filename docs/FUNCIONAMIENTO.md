@@ -59,7 +59,7 @@ permiten ver las víctimas, pero si la imagen está demasiado oscura se ignoran 
 
 [Localizer](../controllers/fool_controller/localization/Localizer.cpp):
 
-- **Posición:** del GPS. Si el GPS no da un valor válido, se usa **odometría**: lo que han girado las ruedas (radio 0,0825 m) combinado con la orientación de la brújula.
+- **Posición:** del GPS, sin cuantizar (`resolution -1`; cambio documentado en [CAMBIOS.md](CAMBIOS.md)). Si el GPS no da un valor válido, se usa **odometría**: lo que han girado las ruedas (radio 0,0825 m) combinado con la orientación de la brújula.
 - **Orientación:** de la brújula.
 - Además lleva cuentas para diagnóstico: odometría pura, distancia total recorrida y giro acumulado.
 - La misión no empieza hasta tener la primera lectura válida de GPS, brújula y encoders.

@@ -96,7 +96,8 @@ saturadas, no choques confirmados.
 - Repetir la tanda con el mismo código da exactamente los mismos números (simulación determinista), así que repetirla no mide la variación. Para medirla hay que
   cambiar la pose de salida (por ejemplo, arrastrando el robot en Webots antes de pulsar Play) o el mundo.
 - Las colisiones no se han medido (los casi-contactos son lecturas IR, no choques).
-- No hay todavía comparación `nocam`/`nomap` con la misión completa, ni pruebas con GPS cuantizado (pendiente conocido).
+- No hay todavía comparación `nocam`/`nomap` con la misión completa.
+- Todas las pruebas usan el GPS sin cuantizar (`resolution -1`, ver [CAMBIOS.md](CAMBIOS.md)); con el GPS original (`resolution 3`) y solo odometría no se ha probado.
 - El tiempo es simulado, no tiempo real.
 
 ## Cómo reproducir
@@ -165,6 +166,7 @@ Si el archivo se llama `map_s??_...`, el controlador no pudo detectar el mundo; 
 |---|---|
 | Ida con cámara + mapa + esférica, 10 mundos | Hecho (tabla 1) |
 | Ida sin cámara (`nocam`) y sin mapa (`nomap`), 10 mundos | Pendiente (comparación) |
-| Misión completa en Webots, 10 mundos | Hecha (tabla 3); pendiente revisar s03 (0/2) y s09 (1/2) |
-| Medir colisiones y distancia real a las víctimas | Pendiente |
-| Evaluación con GPS cuantizado | Pendiente |
+| Misión completa en Webots, 10 mundos | Hecha (tabla 3): 10/10 misiones y 20/20 víctimas |
+| Distancia real robot–víctima en cada giro | Hecha (tabla 3): 0,69–0,83 m |
+| Colisiones | Pendiente: los casi-contactos son lecturas IR; hay que revisarlo visualmente en Webots |
+| GPS | Decidido: `resolution -1`, documentado en [CAMBIOS.md](CAMBIOS.md). Con `resolution 3` + odometría no se ha probado |

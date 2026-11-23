@@ -49,8 +49,9 @@ constexpr double kCompassYawOffsetRad = 0.0;
 
 // ---------------------------------------------------------------------------
 // GPS
-// Los mundos se configuran con GPS resolution -1 (sin cuantizar). Si el GPS no
-// es fiable, poner false y la posición saldrá solo de la odometría.
+// Los mundos se configuran con GPS resolution -1 (sin cuantizar; el original era
+// resolution 3). Cambio documentado en docs/CAMBIOS.md. Con el GPS original,
+// poner false y la posición saldrá solo de la odometría.
 // ---------------------------------------------------------------------------
 constexpr bool kUseGpsForPosition = true;
 
