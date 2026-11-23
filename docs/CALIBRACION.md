@@ -8,7 +8,7 @@ el sensor de distancia, o el tipo de GPS/brújula de los mundos.
 
 1. Abrir `worlds/final_scenario01.wbt` y compilar `fool_controller`.
 2. Comprobar que el robot está en la pose original del archivo, `(0, −9,05)`, mirando a +Z, con espacio libre delante (~1 m) y una pared detrás.
-3. Poner `calibrate` en el campo `controllerArgs` de `Pioneer2` (o `kStartupMode = StartupMode::kCalibrate`) y pulsar Play (≈ 40 s simulados).
+3. Poner `calibrate` en el campo `controllerArgs` de `Pioneer2_Robot` (o `kStartupMode = StartupMode::kCalibrate`) y pulsar Play (≈ 40 s simulados).
 4. Al terminar, la consola muestra el **INFORME DE CALIBRACIÓN** y se guarda en `results/calibration_report.txt`. Las muestras de los IR quedan en
    `results/calibration_ir_samples.csv`.
 5. Copiar los **valores recomendados** a `config/RobotConfig.h`, recompilar y volver a ejecutar: todo debería salir `OK`.

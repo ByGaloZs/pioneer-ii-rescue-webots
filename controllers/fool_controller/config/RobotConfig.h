@@ -56,10 +56,12 @@ constexpr double kCompassYawOffsetRad = 0.0;
 constexpr bool kUseGpsForPosition = true;
 
 // ---------------------------------------------------------------------------
-// Sensores de distancia (16 infrarrojos, tabla nativa de 0.4 m)
+// Sensores de distancia (16 infrarrojos). En Pioneer2_Robot.proto los 8
+// delanteros (ds0-ds3, ds12-ds15) tienen tabla de 1 m y el resto, de 0.4 m;
+// el controlador lee la tabla de cada sensor del robot al arrancar.
 // Webots R2020b atenúa la respuesta IR según el color del objeto:
 // factor = 0.2 + 0.8 * rojo. Obstáculos y paredes cian -> rojo = 0.4 -> 0.52.
-// Alcance efectivo resultante contra obstáculos: ~0.21 m.
+// Alcance efectivo contra obstáculos: ~0.52 m (tabla de 1 m) / ~0.21 m (0.4 m).
 // ---------------------------------------------------------------------------
 // Factor de reflexión para obstáculos cian. Calibración: 0.527 medido
 // (ds0 0.961 / ds15 1.015 de escala) -> se mantiene el teórico 0.52.

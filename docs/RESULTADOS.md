@@ -49,7 +49,8 @@ Media 103,7 s. Sin memoria (Bug puro) fallaban los mundos 03, 05, 07 y 09 (calle
 
 ## 3. Misión completa en Webots
 
-Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:00). Origen: `results/mission_results.csv` y la consola de cada ejecución en `logs/`.
+Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:00), **con el `Pioneer2` de Webots** (IR delanteros de 0,4 m; los mundos usan
+ahora `Pioneer2_Robot`, ver [CAMBIOS.md](CAMBIOS.md)). Origen: `results/mission_results.csv` y la consola de cada ejecución en `logs/`.
 
 **Dos medidas distintas:** *Vuelta a tiempo* (columna `success` del CSV) solo indica que el robot volvió a la salida (z ≤ −8,2) antes de 240 s, sin mirar las víctimas;
 *Víctimas* (columna `victims`) cuenta las rescatadas. Una **misión completa** exige las dos cosas: vuelta a tiempo y 2/2 víctimas.
@@ -152,7 +153,7 @@ Si el archivo se llama `map_s??_...`, el controlador no pudo detectar el mundo; 
 | Prueba | Estado |
 |---|---|
 | Comparación `nocam` / `nomap` / `nosphere` con la misión completa, 10 mundos | Pendiente (tanda final) |
-| Tanda final con la salida original en s01 | Pendiente |
+| Tanda final con `Pioneer2_Robot` y la salida original en s01 | Pendiente |
 | Misión completa en Webots, 10 mundos | Hecha (tabla 3): 10/10 misiones y 20/20 víctimas |
 | Distancia real robot–víctima en cada giro | Hecha (tabla 3): 0,69–0,83 m |
 | Colisiones | Pendiente: los casi-contactos son lecturas IR; hay que revisarlo visualmente en Webots |
