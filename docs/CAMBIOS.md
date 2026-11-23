@@ -9,12 +9,12 @@ sin contar las diferencias de formato que introduce Webots al guardar (decimales
 
 | Archivo | Cambio | ¿Afecta al comportamiento? |
 |---|---|---|
-| `worlds/final_scenario01…10.wbt` | El robot es `Pioneer2_Robot` (el de `protos/`) en lugar del `Pioneer2` de la biblioteca de Webots | **Sí**: los 8 IR delanteros ven hasta ≈ 0,52 m en vez de ≈ 0,21 m |
+| `worlds/final_scenario01…10.wbt` | El robot es `Pioneer2_Robot` (el de `protos/`) en lugar del `Pioneer2` de la biblioteca de Webots | Con el cambio del PROTO de abajo, no: los dos robots quedan iguales |
 | `worlds/final_scenario01…10.wbt` | GPS sin cuantizar: se elimina `resolution 3` (Webots usa entonces `-1`) | **Sí**: el robot conoce su posición con precisión |
 | `worlds/final_scenario01…10.wbt` | `controllerArgs` en el robot (`nofiles`, `nolive`, `mission`, `tag=NN`) | No cambia la misión: solo evita escribir archivos y etiqueta la prueba |
 | `worlds/final_scenario01…10.wbt` | `Viewpoint` con vista cenital | No: solo la cámara del editor |
 | `worlds/final_scenario06/07.wbt` | Cabecera `R2018b` → `R2020b` (Webots lo actualiza al guardar) | No |
-| `protos/Pioneer2_Robot.proto` | **Sin cambios**: sensores de distancia, alcances y `lookupTable` originales | — |
+| `protos/Pioneer2_Robot.proto` | `lookupTable` de los 8 IR delanteros (ds0–ds3, ds12–ds15): de 1 m a 0,4 m, como los otros 8 | **Sí**: alcance real ≈ 0,21 m en vez de ≈ 0,52 m |
 
 ## 1. GPS sin cuantizar (`resolution -1`)
 
@@ -54,16 +54,20 @@ completa.
 0,4 m en el `Pioneer2` de Webots. Con la atenuación de Webots para el cian (factor 0,52), eso da ≈ 0,52 m frente a ≈ 0,21 m. Los laterales y
 traseros (0,4 m), el tipo de sensor (`infra-red`), las ruedas y el resto del robot son iguales.
 
-**Efecto en el controlador:** lee la tabla de cada sensor del propio robot (`DistanceSensorCalibration`), así que las distancias en metros
-siguen siendo correctas. El mapa solo confía en los IR hasta 0,19 m (`kIrMaxRangeM`), igual que antes. Lo que cambia es que la marcha lenta
-de `GO_TO_GOAL` (con cualquier IR delantero detectando algo) se activa antes.
+**Cambio en el PROTO:** la `lookupTable` de esos 8 sensores pasa a ser la de los otros 8, `[0 1024 0, 0.2 1024 0.1, 0.4 0 0.1]` (0,4 m).
+Con eso `Pioneer2_Robot` queda idéntico al `Pioneer2` de Webots salvo por el nombre del PROTO.
 
-**Resultados:** las tandas de [RESULTADOS.md](RESULTADOS.md) hasta el 17-11-2026 se hicieron con el `Pioneer2` de Webots; la tanda final se
-hace con `Pioneer2_Robot`.
+**Por qué:** el controlador se desarrolló y validó con IR de ≈ 0,21 m. Con los delanteros a ≈ 0,52 m casi siempre detectan algo, así que el
+robot no suelta las paredes, va en marcha lenta y gira en el sitio. Prueba en s03 con la tabla de 1 m: ida de 143,0 s (frente a 99,5 s),
+132 casi-contactos (frente a 49) y **0/2 víctimas**, porque llegó al fondo sin tiempo para buscar.
 
-El PROTO en sí no se ha modificado.
+**Efecto en los resultados:** como el robot queda igual al usado hasta el 17-11-2026 y la simulación es determinista, las tandas anteriores
+siguen siendo válidas.
 
-Si en el futuro se cambian, hay que documentarlo aquí y volver a ejecutar `calibrate`, porque `kObstacleReflectionFactor` y las distancias
+**Cómo deshacerlo:** volver a poner en esos 8 sensores la tabla original `[0 1024 0, 0.2 1024 0.1, 0.7 400 0.1, 0.9 100 0.1, 1 0 0]`. El
+controlador lee la tabla de cada sensor al arrancar, así que las distancias seguirían saliendo bien, pero habría que reajustar la navegación.
+
+Si las tablas se vuelven a cambiar, hay que documentarlo aquí y volver a ejecutar `calibrate`, porque `kObstacleReflectionFactor` y las distancias
 máximas de `RobotConfig.h` dependen de esas tablas.
 
 ## 4. Interpretaciones del enunciado

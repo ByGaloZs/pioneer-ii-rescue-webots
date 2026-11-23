@@ -49,8 +49,8 @@ Media 103,7 s. Sin memoria (Bug puro) fallaban los mundos 03, 05, 07 y 09 (calle
 
 ## 3. Misión completa en Webots
 
-Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:00), **con el `Pioneer2` de Webots** (IR delanteros de 0,4 m; los mundos usan
-ahora `Pioneer2_Robot`, ver [CAMBIOS.md](CAMBIOS.md)). Origen: `results/mission_results.csv` y la consola de cada ejecución en `logs/`.
+Modo `mission` (predeterminado), un intento por mundo, tanda del 17-11-2026 (17:00), con el `Pioneer2` de Webots (los mundos usan ahora `Pioneer2_Robot`, que con
+los IR delanteros a 0,4 m es idéntico; ver [CAMBIOS.md](CAMBIOS.md)). Origen: `results/mission_results.csv` y la consola de cada ejecución en `logs/`.
 
 **Dos medidas distintas:** *Vuelta a tiempo* (columna `success` del CSV) solo indica que el robot volvió a la salida (z ≤ −8,2) antes de 240 s, sin mirar las víctimas;
 *Víctimas* (columna `victims`) cuenta las rescatadas. Una **misión completa** exige las dos cosas: vuelta a tiempo y 2/2 víctimas.

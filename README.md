@@ -16,7 +16,7 @@ volver a la salida en menos de 240 s.
 
 **Última tanda integral en Webots (10 ejecuciones, 17-11-2026):** **10/10 misiones completas**: los 10 robots volvieron antes del límite y se rescataron **20/20 víctimas**, comprobadas contra la posición real de cada víctima (el robot giró a 0,69–0,83 m de ella). Tiempo total medio: **129,4 s**; mínimo: **96,1 s** (s04); máximo: **199,3 s** (s03, con 40,7 s de margen). El CSV es `results/mission_results.csv` y la consola de cada ejecución queda en `logs/` (ninguno se versiona); repetir la tanda con el mismo código da las mismas cifras (simulación determinista). Detalle en [docs/RESULTADOS.md](docs/RESULTADOS.md).
 
-**Cambios sobre los archivos de la práctica** (permitidos si se documentan): los 10 mundos usan el robot de `protos/Pioneer2_Robot.proto` (nodo `Pioneer2_Robot`; los originales cargaban el `Pioneer2` de Webots), GPS sin cuantizar (`resolution -1`) y `controllerArgs`; la salida del robot es la original en todos. El PROTO no se ha tocado. Detalle y cómo deshacerlos en [docs/CAMBIOS.md](docs/CAMBIOS.md).
+**Cambios sobre los archivos de la práctica** (permitidos si se documentan): los 10 mundos usan el robot de `protos/Pioneer2_Robot.proto` (nodo `Pioneer2_Robot`; los originales cargaban el `Pioneer2` de Webots), con la `lookupTable` de los 8 IR delanteros reducida de 1 m a 0,4 m; GPS sin cuantizar (`resolution -1`) y `controllerArgs`; la salida del robot es la original en todos. Detalle y cómo deshacerlos en [docs/CAMBIOS.md](docs/CAMBIOS.md).
 
 ## Inicio rápido
 
@@ -72,7 +72,7 @@ controllers/fool_controller/   controlador (C++); Makefile de Webots
   control/ calibration/          motores y seguridad, rutina de calibración
   common/                        ángulos y carpeta de resultados
 docs/                          guías (tabla anterior)
-protos/Pioneer2_Robot.proto    robot que usan los mundos (sin cambios)
+protos/Pioneer2_Robot.proto    robot que usan los mundos (IR delanteros a 0,4 m, ver docs/CAMBIOS.md)
 tools/live_map.py              visor en directo del mapa y de las víctimas
 worlds/                        escenarios final_scenario01…10
 results/                       salidas de las pruebas (CSV, mapas); no versionado
@@ -85,7 +85,7 @@ Casi todo el código nuevo son cabeceras (`.h`) que no necesitan tocar el `Makef
 - **Posición:** `(x, z)` del mundo de Webots, en metros. Salida en `z ≈ −9`, víctimas en `z ≈ +8,3…9,5`.
 - **Orientación (yaw):** el ángulo de `rotation 0 1 0 a` de Webots, `atan2(c[2], c[0])` con la brújula. `yaw = π` mira a +Z (víctimas), `yaw = 0` a −Z (salida);
   girar a la izquierda lo aumenta; avance = `(−sin yaw, −cos yaw)`.
-- **Infrarrojos:** en `Pioneer2_Robot.proto` los 8 delanteros (ds0–ds3, ds12–ds15) tienen una tabla de 1 m y los 8 laterales y traseros (ds4–ds11), de 0,4 m. Webots atenúa según el color: con obstáculos cian el alcance real es ≈ 0,52 m y ≈ 0,21 m. El mapa solo confía en los IR hasta 0,19 m (`kIrMaxRangeM`).
+- **Infrarrojos:** los 16 tienen una tabla de 0,4 m (los 8 delanteros venían con 1 m en el PROTO; ver [docs/CAMBIOS.md](docs/CAMBIOS.md)). Webots atenúa según el color: con obstáculos cian el alcance real es ≈ 0,21 m. El mapa solo confía en los IR hasta 0,19 m (`kIrMaxRangeM`).
 - **GPS:** los mundos usan `resolution -1` (sin cuantizar; el original tenía `resolution 3`). Es un cambio permitido y documentado en [docs/CAMBIOS.md](docs/CAMBIOS.md). Con el GPS original habría que poner `kUseGpsForPosition = false` (solo odometría, no probado con la misión completa).
 
 ## Misión completa en una pantalla

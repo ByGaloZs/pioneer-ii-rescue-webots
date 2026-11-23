@@ -198,11 +198,7 @@ PROTO Pioneer2_Robot [
         ]
         name "ds0"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
         ]
         type "infra-red"
       }
@@ -214,11 +210,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds1"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -229,11 +222,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds2"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0           ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -244,11 +234,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds3"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0          ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -353,11 +340,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds12"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0        ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -368,11 +352,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds13"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0        ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -383,11 +364,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds14"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0        ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
       DistanceSensor {
@@ -398,11 +376,8 @@ PROTO Pioneer2_Robot [
         ]
         name "ds15"
         lookupTable [
-        0 1024 0
-        0.2 1024 0.1
-        0.7 400 0.1
-        0.9 100 0.1
-        1 0 0        ]
+          0 1024 0 0.2 1024 0.1 0.4 0 0.1
+        ]
         type "infra-red"
       }
     ]
