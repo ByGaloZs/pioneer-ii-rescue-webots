@@ -115,6 +115,8 @@ La consola completa de cada ejecución queda en `logs/<mundo>_<fecha-hora>.log` 
 `[MISION]`, `[VICTIMAS]` y `[RESULT]` para revisar qué pasó.
 
 Variantes para comparar: `nocam`, `nomap`, `nosphere`. El CSV las distingue (columnas `camera`, `map`, `sphere`) y cada una guarda su propio mapa.
+Si una variante necesita más de 240 s, añadir `timelimit=SEG` (p. ej. `timelimit=600`): el límite queda en la columna `time_limit_s`, y `success` = 1
+solo indica que volvió antes de ese límite (para el enunciado hay que mirar `time_s` ≤ 240).
 
 ## Columnas de `mission_results.csv` (modo `mission`)
 
@@ -122,7 +124,7 @@ Variantes para comparar: `nocam`, `nomap`, `nosphere`. El CSV las distingue (col
 |---|---|
 | `when`, `tag`, `camera` | Fecha y hora; mundo (`s01`…`s10`, detectado, o el valor de `tag=`); `cam` o `nocam` |
 | `start_x`, `start_z`, `start_yaw_deg` | Pose inicial (yaw 180° = mirando a +Z) |
-| `success` | 1 si la vuelta terminó (z ≤ −8,2) antes de 240 s |
+| `success` | 1 si la vuelta terminó (z ≤ −8,2) antes del límite (`time_limit_s`, 240 por defecto) |
 | `victims` | Víctimas rescatadas (0–2) |
 | `time_s`, `outbound_s`, `return_s` | Tiempo total, de la ida y de la vuelta (−1 si no hubo vuelta) |
 | `victim1_s`, `victim2_s` | Instante en que terminó el giro de cada víctima (−1 si no se rescató) |
@@ -132,6 +134,7 @@ Variantes para comparar: `nocam`, `nomap`, `nosphere`. El CSV las distingue (col
 | `near_contacts`, `emergency_stops`, `min_ir_m` | Episodios con IR < 3 cm o saturado; episodios del `SafetyGuard`; distancia IR mínima vista |
 | `sphere_valid_pct` | % del tiempo que la esférica fue utilizable |
 | `map`, `sphere` | Variante: `map`/`nomap` y `sphere`/`nosphere` |
+| `time_limit_s` | Límite de la misión usado (240 por defecto; otro valor con `timelimit=SEG`) |
 
 ## Mapas ASCII (`results/map_<mundo>_mission[_nocam][_nomap][_nosphere].txt`)
 

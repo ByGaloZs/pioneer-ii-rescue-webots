@@ -9,10 +9,12 @@
 //   nocam      sin cámara frontal          nomap     sin mapa + A* (Bug puro)
 //   nosphere   sin cámara esférica         nolive    sin volcado del mapa en directo
 //   nofiles    no escribir nada en disco (ni CSV, ni mapas, ni log): solo consola
+//   timelimit=SEG  límite total de la misión en segundos (por defecto 240)
 //   tag=XX     etiqueta de la prueba (si falta, se detecta el mundo)
 
 #include <webots/Robot.hpp>
 
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -38,6 +40,7 @@ struct Options {
   bool liveMap = robot_config::kLiveMapByDefault;
   bool useSphere = robot_config::kUseSphereByDefault;
   bool files = true;  // "nofiles": no escribir CSV, mapas ni log
+  double timeLimitS = robot_config::nav::kMissionTimeLimitS;  // "timelimit=SEG"
   std::string tag;
 };
 
@@ -49,6 +52,10 @@ Options parseOptions(int argc, char **argv) {
     if (arg == "calibrate") options.mode = robot_config::StartupMode::kCalibrate;
     else if (arg == "mission") options.mode = robot_config::StartupMode::kMission;
     else if (arg == "nofiles") options.files = false;
+    else if (arg.rfind("timelimit=", 0) == 0) {
+      const double seconds = std::atof(arg.c_str() + 10);
+      if (seconds > 0.0) options.timeLimitS = seconds;
+    }
     else if (arg == "nosphere") options.useSphere = false;
     else if (arg == "sphere") options.useSphere = true;
     else if (arg == "nocam") options.useCamera = false;
@@ -150,6 +157,11 @@ int main(int argc, char **argv) {
   SensorCalibration calibration;
   RescueMission rescue(options.useCamera && segmenter != nullptr, options.useMap,
                        options.liveMap && options.files, sphereCamera != nullptr, options.tag);
+  rescue.setTimeLimitS(options.timeLimitS);
+  if (options.timeLimitS != robot_config::nav::kMissionTimeLimitS)
+    std::cout << "[STARTUP] timelimit: límite de la misión " << options.timeLimitS
+              << " s (el enunciado pide " << robot_config::nav::kMissionTimeLimitS << " s)"
+              << std::endl;
   // Siguiente instante en el que se imprime el estado (una vez por segundo).
   double nextStatusS = 0.0;
 

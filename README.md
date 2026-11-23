@@ -43,6 +43,7 @@ volver a la salida en menos de 240 s.
 | `nocam`, `nomap`, `nosphere` | Sin cámara frontal / sin mapa+A* (Bug puro) / sin cámara esférica (ni en el mapa ni en las observaciones de víctimas del modo `mission`; para comparar) |
 | `nolive` | Sin volcado del mapa en directo |
 | `nofiles` | No escribe nada en disco (ni CSV, ni mapas, ni log): solo la consola |
+| `timelimit=SEG` | Límite total de la misión en segundos (por defecto 240, el del enunciado). Para las comparaciones que necesitan más tiempo |
 | `tag=XX` | Etiqueta de la prueba; si falta se detecta el mundo (`s01`…`s10`) o sale `s??` |
 
 ## Documentación

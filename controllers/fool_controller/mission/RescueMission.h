@@ -37,7 +37,8 @@
 //              por las que ya pasó (se sabe que caben).
 //
 // Si el tiempo no da para seguir buscando, se vuelve con las que haya
-// rescatado: la vuelta tiene prioridad (límite total 240 s).
+// rescatado: la vuelta tiene prioridad (límite total 240 s, o el de
+// "timelimit=SEG" en controllerArgs para las comparaciones).
 //
 // Implementación solo en cabecera para no tener que tocar el Makefile.
 class RescueMission {
@@ -77,7 +78,7 @@ public:
     }
     detectVictims(pose, camera, sphereImage, sphereTurn);
 
-    if (elapsed > nav::kMissionTimeLimitS) {
+    if (elapsed > _timeLimitS) {
       finish(snapshot, localizer, false);
       return WheelCommand::stop();
     }
@@ -132,6 +133,10 @@ public:
 
   bool finished() const { return _finished; }
 
+  // Límite total de la misión en segundos (por defecto kMissionTimeLimitS = 240;
+  // controllerArgs "timelimit=SEG" lo cambia para las comparaciones).
+  void setTimeLimitS(double seconds) { _timeLimitS = seconds; }
+
   // Imprime una línea de estado de la misión.
   void printStatus(const SensorSnapshot &snapshot, const Localizer &localizer) const {
     const Pose &pose = localizer.pose();
@@ -172,7 +177,8 @@ private:
     std::cout << "[MISION] Inicio: ida hacia z=" << nav::kOutboundGoalZ << ", buscar 2 víctimas"
               << ", rescatarlas (parar < 1 m + giro 360°) y volver | cámara "
               << (_useCamera ? "SI" : "no") << " | mapa+A* " << (_useMap ? "SI" : "no")
-              << " | esférica " << (_useSphere ? "SI" : "no") << std::endl;
+              << " | esférica " << (_useSphere ? "SI" : "no") << " | límite "
+              << static_cast<int>(std::lround(_timeLimitS)) << " s" << std::endl;
   }
 
   // Avisa cuando la cámara esférica deja de usarse por poca luz o vuelve a usarse.
@@ -264,7 +270,7 @@ private:
   bool mustReturn(double elapsed) const {
     namespace m = robot_config::mission;
     const double reserve = m::kReturnReserveFactor * _outboundS + m::kReturnReserveFixedS;
-    return elapsed + reserve > robot_config::nav::kMissionTimeLimitS - m::kReturnSafetyMarginS;
+    return elapsed + reserve > _timeLimitS - m::kReturnSafetyMarginS;
   }
 
   // Búsqueda: si ya hay una víctima confirmada va por ella; si no, recorre los puntos del barrido.
@@ -613,11 +619,12 @@ private:
         << std::setprecision(3) << (_minIrM < 1e8 ? _minIrM : -1.0) << ','
         << std::setprecision(0)
         << (_sphereFrames > 0 ? 100.0 * _sphereValidFrames / _sphereFrames : 0.0) << ','
-        << (_useMap ? "map" : "nomap") << ',' << (_useSphere ? "sphere" : "nosphere");
+        << (_useMap ? "map" : "nomap") << ',' << (_useSphere ? "sphere" : "nosphere") << ','
+        << std::setprecision(0) << _timeLimitS;
     const std::string header =
         "when,tag,camera,start_x,start_z,start_yaw_deg,success,victims,time_s,outbound_s,"
         "victim1_s,victim2_s,return_s,victim1_dist_m,victim2_dist_m,lines_back,path_m,"
-        "near_contacts,emergency_stops,min_ir_m,sphere_valid_pct,map,sphere";
+        "near_contacts,emergency_stops,min_ir_m,sphere_valid_pct,map,sphere,time_limit_s";
     const std::string csv = run_output::path("mission_results.csv");
     std::string firstLine;
     {
@@ -649,6 +656,7 @@ private:
   // ----------------------------------------------------------------- estado
   // Estado interno: banderas, fase, tiempos, módulos y datos de las víctimas.
   bool _useCamera, _useMap, _liveMap, _useSphere;
+  double _timeLimitS = robot_config::nav::kMissionTimeLimitS;
   std::string _tag;
   bool _started = false, _finished = false;
   Phase _phase = Phase::kOutbound;

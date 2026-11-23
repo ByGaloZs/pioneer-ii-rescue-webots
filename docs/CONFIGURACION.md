@@ -43,7 +43,7 @@ Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m
 
 | Grupo | Constantes | Efecto |
 |---|---|---|
-| Meta y tiempo | `kOutboundGoalZ` 8,4; `kOutboundDoneZ` 8,2; `kMissionTimeLimitS` 240 | La meta del plan está más allá de la línea amarilla (z = 8) para que el robot la cruce; la ida termina en z ≥ 8,2 y la misión falla a los 240 s |
+| Meta y tiempo | `kOutboundGoalZ` 8,4; `kOutboundDoneZ` 8,2; `kMissionTimeLimitS` 240 | La meta del plan está más allá de la línea amarilla (z = 8) para que el robot la cruce; la ida termina en z ≥ 8,2 y la misión falla a los 240 s (`timelimit=SEG` en `controllerArgs` lo cambia sin recompilar) |
 | Alineación | `kAlignAngleRad` 1,05 (60°); `kHeadingGain` 4,0; `kMaxHeadingCorrection` 2,0 | Con error > 60° gira en el sitio; si no, corrige el rumbo con ganancia proporcional limitada |
 | Velocidades | `kCruiseSpeedNoCamera` 4,0; `kNearObstacleSpeed` 2,5; `kCameraMinSpeed` 2,5; `kCameraMaxSpeed` 8,0 | Crucero sin cámara; límite cuando un IR delantero detecta; rango con cámara |
 | Cámara | `kCameraSlowClearanceM` 0,8; `kCameraFastClearanceM` 2,5; `kCameraSearchAngleRad` 0,35; `kCameraNeededClearanceM` 2,0; `kRobotHalfWidthM` 0,30 | Espacio libre para ir lento/rápido; abanico de búsqueda de ±20°; espacio libre que debe tener un rumbo; semiancho del pasillo (con margen) |
