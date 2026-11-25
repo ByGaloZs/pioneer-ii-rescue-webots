@@ -209,6 +209,11 @@ constexpr double kSearchWaypointRadiusM = 0.5;
 constexpr double kSearchLookRad = 6.30;      // vuelta completa en cada extremo para mirar la esquina
 constexpr double kSearchLookTimeoutS = 7.0;  // si no completa la vuelta (bloqueado), sigue el barrido
 constexpr double kSearchLookSkipRadiusM = 1.0; // sin vuelta si ya giró 360° (rescate) a menos de esto
+// Una candidata a menos de kDuplicateAfterRescueM de una rescatada puede ser esa misma
+// víctima estimada dos veces (s03 sin cámara frontal): se aplaza y se sigue barriendo.
+// Solo se va a por ella al agotar el barrido o si quedan menos de estos segundos de
+// margen (para no volver con una víctima por haberla aplazado).
+constexpr double kDeferNearRescuedReserveS = 45.0;
 }  // namespace victims
 
 // Parámetros de la vuelta y del reloj de la misión.

@@ -1,6 +1,6 @@
 # Configuración (`config/RobotConfig.h`)
 
-Todos los parámetros del robot están en un único archivo. Esta guía explica qué controla cada grupo y qué se nota al cambiarlo.
+Los parámetros principales del robot están en un único archivo. Algunos umbrales internos de maniobras concretas (recuperación de atascos, rodeo de esquinas, aproximación final a la víctima) están en `GoalNavigator.cpp` y `RescueMission.h`, comentados junto al código. Esta guía explica qué controla cada grupo y qué se nota al cambiarlo.
 Las velocidades son rad/s de rueda (× 0,0825 = m/s; máximo 10 rad/s ≈ 0,83 m/s). Tras modificar el archivo hay que recompilar.
 
 > **Regla de oro:** los valores de cinemática, brújula e IR salen de la calibración (ver [CALIBRACION.md](CALIBRACION.md)).
@@ -98,7 +98,7 @@ falsos obstáculos.
 |---|---|---|
 | Región y fusión | `kMaxAbsXM` 4,9; `kMinZ` 5,0; `kMaxZ` 9,9; `kMergeRadiusM` 0,5; `kDuplicateRadiusM` 0,45; `kShadowRadiusM` 1,25 | Dónde se aceptan víctimas; observaciones/candidatas más cerca que esto son la misma; radio en el que una candidata nueva "detrás" de otra ya vista de cerca se ignora |
 | Confirmación | `kConfirmFrames` 5 | Imágenes necesarias para confirmar |
-| Duplicados | `kDuplicateAfterRescueM` 1,0; `kMinVictimSeparationM` 0,6 | Tras un rescate, candidatas a menos de 1 m no vistas en el giro son la misma víctima y las vistas van al final de la cola; a menos de 0,6 m (el diámetro) siempre son la misma |
+| Duplicados | `kDuplicateAfterRescueM` 1,0; `kMinVictimSeparationM` 0,6; `kDeferNearRescuedReserveS` 45 | Tras un rescate, candidatas a menos de 1 m no vistas en el giro son la misma víctima y las vistas van al final de la cola; a menos de 0,6 m (el diámetro) siempre son la misma. Si la única pendiente está a menos de 1 m de una rescatada, se aplaza y se sigue barriendo mientras sobren al menos 45 s sobre la regla de vuelta |
 | Pesos y rangos | `kFrontWeight` 20; `kSphereWeight` 6 (peso = k / distancia³); `kFrontMinRangeM` 1,0; `kFrontMaxRangeM` 6,0; `kSphereMinRangeM` 0,7; `kSphereMaxRangeM` 3,0; `kSphereMinPixels` 4 | Rango configurado en que cada cámara aporta observaciones (la precisión real depende de la distancia y debe validarse en Webots) |
 | Observación cercana | `kCloseRangeM` 1,7; `kCloseBlend` 0,35; `kCloseGateM` 0,35; `kCloseHoldFrames` 150; `kMaxWeight` 25 | Las observaciones cercanas corrigen la estimación y mandan sobre las lejanas |
 | Color | `kMinGreen` 12; `kFloorGreenFactor` 1,15; `kMaxRequiredGreen` 200 | Verde mínimo absoluto y relativo al brillo del suelo, con tope (con suelo muy brillante 1,15 × brillo pasaría de 255) |

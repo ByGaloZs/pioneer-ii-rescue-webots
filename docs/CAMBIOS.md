@@ -26,7 +26,7 @@ sin contar las diferencias de formato que introduce Webots al guardar (decimales
 **Por qué:** el controlador construye un mapa de ocupación de 10 cm por celda y planifica con A\* (ver [NAVEGACION.md](NAVEGACION.md)). Con saltos
 de 3 m el mapa quedaría desplazado varias decenas de celdas, el A\* planificaría sobre obstáculos que no están donde cree y no se podría
 comprobar la parada a menos de 1 m de cada víctima. Con el GPS exacto la posición estimada de las víctimas quedó a ≤ 0,11 m de la real en 19
-de 20 rescates (ver [RESULTADOS.md](RESULTADOS.md)).
+de 20 rescates (tanda del 17-11-2026, medido contra la posición real de cada víctima).
 
 **Cómo usarlo:** `kUseGpsForPosition = true` en `config/RobotConfig.h` (valor actual). La posición sale del GPS y la orientación de la brújula.
 

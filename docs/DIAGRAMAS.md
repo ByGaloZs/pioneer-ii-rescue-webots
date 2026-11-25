@@ -152,7 +152,7 @@ stateDiagram-v2
 |---|---|---|
 | **Entrada** | | |
 | `fool_controller.cpp` | Punto de entrada: lee opciones, crea módulos, corre el bucle y elige el modo | todos los de nivel superior |
-| `config/RobotConfig.h` | Todos los parámetros: velocidades, umbrales, metas, tiempos | nadie (lo usan todos) |
+| `config/RobotConfig.h` | Parámetros principales: velocidades, umbrales, metas, tiempos | nadie (lo usan todos) |
 | **Sensores y pose** | | |
 | `sensors/SensorManager` | Habilita GPS, brújula, encoders, 16 IR y cámaras; filtra los IR y calcula sectores | `DistanceSensorCalibration` |
 | `sensors/DistanceSensorCalibration` | Convierte la respuesta del IR en metros invirtiendo la lookup table | — |

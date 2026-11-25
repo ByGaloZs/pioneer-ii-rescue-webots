@@ -123,6 +123,9 @@ IDA ──z ≥ 8,2──► BUSCAR ──víctima confirmada──► IR_A_VICT
   así que en los extremos llega a x ≈ ±3,2. Allí da una **vuelta completa en el sitio** (`kSearchLookRad`, máximo 7 s) para que las dos cámaras miren la esquina y
   junten las imágenes de confirmación; si se confirma una víctima o se acaba el tiempo durante la vuelta, la interrumpe. Se la salta si el robot ya completó un giro
   de rescate a menos de 1 m (`kSearchLookSkipRadiusM`): desde ahí ya miró alrededor.
+- **Candidata junto a una rescatada:** si la única víctima confirmada pendiente está a menos de 1 m de una ya rescatada, puede ser la misma estimada dos veces.
+  El robot la **aplaza** y sigue barriendo mientras queden tramos y sobren 45 s (`kDeferNearRescuedReserveS`) sobre la regla de tiempo; solo va a por ella si el
+  barrido se agota o falta tiempo (en s10 las dos víctimas reales están a 0,83 m, así que no se puede descartar sin más).
 - **Aproximación:** A* hasta 1,15 m y avance directo hasta 0,85 m del centro de la víctima (retrocede si ya está a < 0,7 m); se abandona a los 45 s (ir) o 15 s (acercar).
 - **Giro y mensaje:** giro a la izquierda hasta acumular 6,40 rad (límite 8 s; si no se alcanza, la víctima **no** cuenta como rescatada y se marca fallida) e impresión de `[VICTIMA n] Víctima encontrada ... a d m del robot` y `... VICTIMA RESCATADA ...`.
   Después la víctima se marca como obstáculo circular (0,3 m) en el mapa y no se vuelve a contar.

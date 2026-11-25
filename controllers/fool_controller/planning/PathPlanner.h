@@ -13,8 +13,9 @@
 #include "../localization/Localizer.h"
 #include "../mapping/OccupancyGrid.h"
 
-// A* sobre el mapa de ocupación hasta una línea meta (z >= zTarget hacia +z,
-// o z <= zTarget hacia -z).
+// A* sobre el mapa de ocupación hasta una línea meta (plan: z >= zTarget hacia +z,
+// o z <= zTarget hacia -z) o hasta un punto (planPoint: celdas a menos de un
+// radio del punto, para ir a una víctima).
 //  - Optimista: lo desconocido se considera libre. Al descubrir una pared el
 //    mapa cambia y se replanifica (exploración tipo "D*-lite pobre").
 //  - Celdas a menos de kLethalRadiusM de una ocupada: prohibidas (el robot no cabe).

@@ -101,6 +101,10 @@ cilíndrica alrededor del eje, máscara del propio robot (`isRobot`) y conversi�
   **al final de la cola** y, entre ellas, se elige la **más alejada** de la rescatada. En s03 el duplicado estaba tan pegado a la víctima real que recibía
   observaciones en el giro; con la cola el robot va antes a por la otra víctima. En s10 (víctimas reales a 0,83 m) aparecía un "fantasma" entre las dos, más cerca
   del robot, y el segundo giro se hacía a 1,30 m de la víctima 2; ahora el fantasma (a 0,49 m de la rescatada) se descarta y se va a la víctima real.
+  Por último, si la única candidata pendiente está a menos de 1 m de una rescatada, `RescueMission::searchStep` la **aplaza**: sigue el barrido mientras queden
+  tramos y sobre tiempo (`mustReturn(t + kDeferNearRescuedReserveS)` falso, 45 s) y solo va a por ella si el barrido se agota o falta tiempo. Así se evitó en s03
+  sin cámara frontal un segundo giro sobre la misma víctima (dos candidatas a 0,69 m que sí recibían observaciones en el giro), sin perder la segunda víctima de
+  s10 si de verdad es otra. En consola: `[MISION] Candidata #n (...) a menos de 1 m de una rescatada: puede ser la misma víctima. Se aplaza y se sigue barriendo.`
 
 ## 5. Mapa (`mapping/`)
 

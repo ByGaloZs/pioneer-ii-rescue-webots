@@ -8,8 +8,9 @@
 #include "../planning/PathPlanner.h"
 #include "../sensors/SensorSnapshot.h"
 
-// Lleva el robot hasta una línea objetivo (z = constante) en un entorno
-// desconocido. Comportamientos:
+// Lleva el robot hasta una meta en un entorno desconocido: una línea (z = constante,
+// para la ida y la vuelta: setGoalLine) o un punto con un radio (una víctima:
+// setGoalPoint). Comportamientos:
 //  - ALIGN:       girar en el sitio hacia la meta si está muy desviada.
 //  - GO_TO_GOAL:  avanzar hacia la meta. Con cámara, elige con antelación el
 //                 hueco libre más cercano a la dirección de la meta y adapta la

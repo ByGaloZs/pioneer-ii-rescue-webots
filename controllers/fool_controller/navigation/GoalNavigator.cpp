@@ -27,7 +27,7 @@ double ir(const SensorSnapshot &s, int index) {
 // traseras del Pioneer son lo que más sobresale.
 bool rearClear(const SensorSnapshot &s, double margin) {
   return std::min(std::min(ir(s, 6), ir(s, 7)), std::min(ir(s, 8), ir(s, 9))) > margin &&
-         std::min(ir(s, 5), ir(s, 10)) > 0.7 * margin;
+         std::min(ir(s, 5), ir(s, 10)) > 0.7 * margin;  // las laterales traseras, algo más permisivas
 }
 
 // Diferencial de ruedas: u > 0 gira a la izquierda (aumenta el yaw).
@@ -124,7 +124,7 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
   WheelCommand command;
   switch (_state) {
     case State::kAlign:
-      if (std::fabs(goalRel) < 0.3) {
+      if (std::fabs(goalRel) < 0.3) {  // ~17°: ya mira hacia la meta, se puede avanzar
         _state = State::kGoToGoal;
         _alignDir = 0;
         command = goToGoal(snapshot, pose, camera, goalRel);
@@ -133,17 +133,18 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
           // Sentido por defecto: el más corto. Si el giro es grande y la trasera
           // de ese lado está pegada a algo, girar al revés (la trasera barre hacia fuera).
           int direction = goalRel > 0 ? 1 : -1;
-          if (std::fabs(goalRel) > 1.6) {
+          if (std::fabs(goalRel) > 1.6) {  // giro de más de ~90°: la cola barre mucho
             const double rearLeft = std::min(ir(snapshot, 4), std::min(ir(snapshot, 5), ir(snapshot, 6)));
             const double rearRight = std::min(ir(snapshot, 11), std::min(ir(snapshot, 10), ir(snapshot, 9)));
             const double sweptRear = direction > 0 ? rearRight : rearLeft;
             const double otherRear = direction > 0 ? rearLeft : rearRight;
+            // Trasera a < 12 cm de algo y el otro lado con al menos 3 cm más de hueco.
             if (sweptRear < 0.12 && otherRear > sweptRear + 0.03) direction = -direction;
           }
           enterAlign(direction);
         }
         // Si no consigue girar en unos segundos (encajado), probar el otro sentido.
-        if (!_alignFlipped && _timeS - _alignStartS > 4.0) {
+        if (!_alignFlipped && _timeS - _alignStartS > 4.0) {  // 4 s sin alinearse
           _alignDir = -_alignDir;
           _alignFlipped = true;
           _alignStartS = _timeS;
@@ -167,12 +168,13 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
       break;
 
     case State::kReverseOut:
+      // Retrocede como mucho 0,8 s (~15 cm) y para si detrás queda a menos de 10 cm.
       if (_timeS - _reverseStartS > 0.8 || !rearClear(snapshot, 0.10)) {
         _state = State::kTurnAround;
         _turnAccumulated = 0.0;
         command = WheelCommand::stop();
       } else {
-        command = WheelCommand::of(-2.5, -2.5);
+        command = WheelCommand::of(-2.5, -2.5);  // marcha atrás lenta (~0,2 m/s)
       }
       break;
 
@@ -189,6 +191,7 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
       } else {
         // Girar HACIA la pared: la parte trasera (donde el Pioneer sobresale más)
         // barre hacia fuera, lejos de ella. Si delante hay algo, girar al revés.
+        // "Delante libre": frontales a más de 15 cm y la diagonal de ese lado a más de 12 cm.
         const bool frontClear = std::min(ir(snapshot, 0), ir(snapshot, 15)) > 0.15 &&
                                 ir(snapshot, _wallSide > 0 ? 1 : 14) > 0.12;
         command = safePivot(snapshot, frontClear ? _wallSide : -_wallSide, nav::kPivotSpeed);
@@ -197,6 +200,8 @@ WheelCommand GoalNavigator::step(const SensorSnapshot &snapshot, const Pose &pos
 
     case State::kRecover: {
       const double elapsed = _timeS - _recoverStartS;
+      // Recuperación en tres tiempos: 0,6 s marcha atrás (si detrás hay más de 12 cm;
+      // si no, girar), hasta 1,3 s girar hacia el lado con más espacio, y reanudar.
       if (elapsed < 0.6) {
         command = rearClear(snapshot, 0.12) ? WheelCommand::of(-2.5, -2.5)
                                             : safePivot(snapshot, _recoverDirection, nav::kPivotSpeed);
@@ -237,7 +242,7 @@ WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
   // Paso más estrecho que el robot: obstáculos cerca a ambos lados a la vez.
   const double leftSide = std::min(ir(s, 2), ir(s, 3));
   const double rightSide = std::min(ir(s, 12), ir(s, 13));
-  const bool tooNarrow = leftSide < 0.10 && rightSide < 0.10;
+  const bool tooNarrow = leftSide < 0.10 && rightSide < 0.10;  // < 10 cm a cada lado
   if (front < nav::kHitFrontM || diagonal < nav::kHitDiagonalM || tooNarrow) {
     startFollowing(s, pose, goalRel);
     return WheelCommand::stop();
@@ -246,13 +251,16 @@ WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
   // 2. Dirección y velocidad.
   double desiredRel = goalRel;
   double speed = nav::kCruiseSpeedNoCamera;
+  // Solo con la meta casi de frente (< ~26°): si está más girada, la cámara no la ve.
   if (camera != nullptr && camera->valid && std::fabs(goalRel) < 0.45) {
+    // Espacio libre exigido al hueco: el configurado, o lo que falta hasta la meta + 0,3 m.
     const double needed = std::min(nav::kCameraNeededClearanceM, remainingM(pose) + 0.3);
     double bestCost = kInf, bestRel = goalRel, bestClearance = 0.0;
     double widestRel = goalRel, widestClearance = -1.0;
     for (double h = -nav::kCameraSearchAngleRad; h <= nav::kCameraSearchAngleRad + 1e-9;
          h += angles::toRad(2.0)) {
       const double clearance = camera->corridorClearance(h, nav::kRobotHalfWidthM, 10.0);
+      // Hueco más amplio (empates de ±5 cm: el más cercano a la meta), por si ninguno basta.
       if (clearance > widestClearance + 0.05 ||
           (std::fabs(clearance - widestClearance) <= 0.05 &&
            std::fabs(h - goalRel) < std::fabs(widestRel - goalRel))) {
@@ -260,6 +268,8 @@ WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
         widestRel = h;
       }
       if (clearance >= needed) {
+        // Coste: desviarse de la meta, más una penalización pequeña (0,15) por cambiar de
+        // rumbo respecto al paso anterior, para no oscilar entre dos huecos parecidos.
         const double cost = std::fabs(h - goalRel) + 0.15 * std::fabs(h - _previousDesiredRel);
         if (cost < bestCost) {
           bestCost = cost;
@@ -272,8 +282,10 @@ WheelCommand GoalNavigator::goToGoal(const SensorSnapshot &s, const Pose &pose,
       bestRel = widestRel;
       bestClearance = widestClearance;
     }
+    // Solo se sigue a la cámara si el hueco tiene al menos 0,9 m libres; si no, rumbo a la meta.
     if (bestClearance >= 0.9) {
       desiredRel = bestRel;
+      // Hueco desviado más de 4°: recordar el lado por si luego hay que rodear.
       if (std::fabs(bestRel - goalRel) > angles::toRad(4.0)) {
         _cameraPreferredSide = bestRel > goalRel ? 1 : -1;
         _cameraPreferenceTimeS = _timeS;
@@ -321,15 +333,15 @@ void GoalNavigator::startFollowing(const SensorSnapshot &s, const Pose &pose, do
 
   // ¿Pasar por la izquierda del obstáculo?
   bool passLeft;
-  if (std::fabs(planRel) > 0.1) {
+  if (std::fabs(planRel) > 0.1) {  // el plan se desvía más de ~6°
     passLeft = planRel > 0.0;             // el plan ya sabe por dónde se rodea
-  } else if (_cameraPreferredSide != 0 && _timeS - _cameraPreferenceTimeS < 2.0) {
+  } else if (_cameraPreferredSide != 0 && _timeS - _cameraPreferenceTimeS < 2.0) {  // visto hace < 2 s
     passLeft = _cameraPreferredSide > 0;  // la cámara vio el hueco antes de llegar
-  } else if (leftNear < rightNear - 0.03) {
+  } else if (leftNear < rightNear - 0.03) {  // diferencia de al menos 3 cm
     passLeft = false;                     // el obstáculo está más a la izquierda
   } else if (rightNear < leftNear - 0.03) {
     passLeft = true;
-  } else if (std::fabs(pose.xM) > 2.5) {
+  } else if (std::fabs(pose.xM) > 2.5) {  // a menos de 2,5 m de una pared lateral
     // Cerca de una pared lateral del recinto: ir hacia el centro (x = 0).
     const double leftYaw = pose.yawRad + 0.5 * angles::kPi;
     const double leftX = -std::sin(leftYaw);
@@ -352,8 +364,9 @@ bool GoalNavigator::goalDirectionFree(const SensorSnapshot &s, const FreeSpacePr
                                       double goalRel) const {
   for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
     const double diff = angles::wrap(angles::toRad(kSensorAngleDeg[i]) - goalRel);
-    if (std::fabs(diff) < angles::toRad(45.0) && s.distanceDetected[i]) return false;
+    if (std::fabs(diff) < angles::toRad(45.0) && s.distanceDetected[i]) return false;  // IR en ±45° de la meta
   }
+  // Con la meta en el campo de la cámara (< ~20°), exigir al menos 0,7 m libres en esa dirección.
   if (camera != nullptr && camera->valid && std::fabs(goalRel) < 0.35 &&
       camera->corridorClearance(goalRel, nav::kRobotHalfWidthM, 10.0) < 0.7)
     return false;
@@ -378,7 +391,7 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
     // Terminar cuando ni el frente ni las diagonales del lado de la pared lo ven
     // cerca: el robot queda paralelo o ligeramente separado del obstáculo.
     if (front == kInf && diagonal30 == kInf && otherDiagonal30 > nav::kHitDiagonalM &&
-        diagonal50 > 0.17)
+        diagonal50 > 0.17)  // la diagonal de 50° ya algo separada (> 17 cm)
       _engaging = false;
     else
       return safePivot(s, -side, nav::kPivotSpeed);
@@ -387,10 +400,12 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
   // 1. Esquina interior u obstáculo delante: girar alejándose de la pared. Si la
   //    pared lateral está muy cerca, retroceder antes: al girar en el sitio la
   //    parte trasera del Pioneer (0.26 m detrás del eje) barre hacia la pared.
+  // Umbrales: diagonal del lado de la pared < 12 cm, la del otro lado < 10 cm.
   if (front < nav::kWallFrontBlockM || diagonal30 < 0.12 || otherDiagonal30 < 0.10) {
     _wallLostS = 0.0;
     const double lateralNow = std::min(lateralFront, lateralRear);
     const bool rearFree = rearClear(s, 0.15);
+    // Pared lateral a < 12 cm y algo delante a < 10 cm: retroceder antes de girar.
     if (lateralNow < 0.12 && rearFree && front < 0.10) return WheelCommand::of(-2.0, -2.0);
     return safePivot(s, -side, nav::kPivotSpeed);
   }
@@ -398,9 +413,10 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
   // 1b. Cuña: el paso se estrecha delante por el lado contrario a la pared.
   //     Salir marcha atrás y rodear por el otro lado antes de quedar encajado.
   const double otherDiagonal50 = ir(s, side > 0 ? 13 : 2);
+  // 0,19 m = alcance fiable de los IR (kIrMaxRangeM): "se ve la pared".
   const bool wallAlongside = lateralFront < 0.19 || lateralRear < 0.19;
   if (!_switchedThisObstacle && wallAlongside && otherDiagonal30 < 0.18 &&
-      otherDiagonal50 < 0.18) {
+      otherDiagonal50 < 0.18) {  // el otro lado también a < 18 cm: el paso se cierra
     ++_sideSwitches;
     _switchedThisObstacle = true;
     _state = State::kReverseOut;
@@ -412,6 +428,7 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
   // No soltar la pared si la meta queda hacia el lado de la pared y esta aún se ve
   // (evita el zigzag "suelto-choco-suelto" contra paredes en diagonal).
   const bool wallStillSeen = lateralFront < 0.19 || lateralRear < 0.19 || diagonal50 < 0.19;
+  // La meta no puede estar más de 45° hacia el lado de la pared, ni más de 15° si la pared se ve.
   const bool goalNotBehindWall =
       side * goalRel <= angles::toRad(45.0) && !(side * goalRel > angles::toRad(15.0) && wallStillSeen);
   namespace m = robot_config::mapping;
@@ -455,21 +472,21 @@ WheelCommand GoalNavigator::followWall(const SensorSnapshot &s, const Pose &pose
   const bool wallSeen = lateralFront < kInf || lateralRear < kInf || diagonal50 < kInf;
   if (!wallSeen) {
     _wallLostS += dtS;
-    if (_wallLostS < 0.4) return drive(3.0, 0.0);
+    if (_wallLostS < 0.4) return drive(3.0, 0.0);  // 0,4 s recto: que la cola pase la esquina
     return drive(2.5, side * 1.1);  // arco alrededor de la esquina
   }
   _wallLostS = 0.0;
 
   // 5. Mantener la distancia a la pared y el paralelismo.
   double lateral = std::min(lateralFront, lateralRear);
-  if (diagonal50 < kInf) lateral = std::min(lateral, diagonal50 * 0.77);
+  if (diagonal50 < kInf) lateral = std::min(lateral, diagonal50 * 0.77);  // cos(40°): distancia perpendicular
   double align = 0.0;  // > 0: el morro se separa de la pared
   if (lateralFront < kInf && lateralRear < kInf) align = lateralFront - lateralRear;
   const double towardWall = clamp(nav::kWallDistanceGain * (lateral - nav::kWallTargetM) +
                                       nav::kWallAlignGain * align,
                                   nav::kMaxHeadingCorrection);
   // Muy pegado a la pared: avanzar más despacio mientras se corrige.
-  const double speed = lateral < 0.09 ? 0.6 * nav::kWallFollowSpeed : nav::kWallFollowSpeed;
+  const double speed = lateral < 0.09 ? 0.6 * nav::kWallFollowSpeed : nav::kWallFollowSpeed;  // < 9 cm: al 60 %
   return drive(speed, side * towardWall);
 }
 
@@ -492,6 +509,7 @@ bool GoalNavigator::updateStuckDetector(const Pose &pose, const WheelCommand &co
   const double steps = std::max(1, _windowSteps);
   const double moved = std::hypot(pose.xM - _windowX, pose.zM - _windowZ);
   // Atasco: se ordena avanzar y no se avanza, o se ordena girar y no se gira.
+  // "Se ordena" = media de más de 1,5 rad/s en la ventana; "no se gira" = menos de ~3°.
   const bool stuckForward = _windowForward / steps > 1.5 && moved < nav::kStuckMinMoveM;
   const bool stuckTurning = _windowTurn / steps > 1.5 && _windowYawChange < 0.05;
   _windowStartS = timeS;
@@ -513,7 +531,7 @@ WheelCommand GoalNavigator::safePivot(const SensorSnapshot &s, int direction, do
   if (_timeS < _escapeUntilS) return _escapeCommand;
   auto tight = [&](std::initializer_list<int> indices) {
     for (int i : indices)
-      if (s.distanceDetected[i] && s.distanceM[i] < 0.09) return true;
+      if (s.distanceDetected[i] && s.distanceM[i] < 0.09) return true;  // trasera a < 9 cm
     return false;
   };
   const bool rearTight = direction > 0 ? tight({9, 10, 11}) : tight({4, 5, 6});
@@ -521,6 +539,7 @@ WheelCommand GoalNavigator::safePivot(const SensorSnapshot &s, int direction, do
   // Escapes repetidos sin que cambie la orientación (encajado en diagonal en una
   // esquina: girar choca detrás, retroceder libera el frente y se vuelve a
   // avanzar...). Tras 3, forzar un giro lento durante 1 s.
+  // Se reinicia la cuenta si pasan 5 s o si la orientación cambió más de ~11°.
   if (_timeS - _escapeWindowStartS > 5.0 || std::fabs(angles::wrap(_yawNow - _escapeYaw)) > 0.2) {
     _escapeCount = 0;
     _escapeWindowStartS = _timeS;

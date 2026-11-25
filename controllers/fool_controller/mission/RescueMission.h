@@ -40,6 +40,12 @@
 // rescatado: la vuelta tiene prioridad (límite total 240 s, o el de
 // "timelimit=SEG" en controllerArgs para las comparaciones).
 //
+// Víctimas duplicadas: una misma persona vista desde lejos puede dar dos
+// candidatas. Tras cada rescate, VictimTracker descarta las cercanas que no se
+// vieron durante el giro y deja al final de la cola las que están a menos de
+// 1 m; si la única pendiente es una de esas, searchStep la aplaza y sigue
+// barriendo mientras sobre tiempo (kDeferNearRescuedReserveS).
+//
 // Implementación solo en cabecera para no tener que tocar el Makefile.
 class RescueMission {
 public:
@@ -284,12 +290,30 @@ private:
       enter(Phase::kReturn, pose);
       return WheelCommand::stop();
     }
-    if (VictimTracker::Candidate *c = _tracker.nearestPending(pose.xM, pose.zM)) {
+    VictimTracker::Candidate *c = _tracker.nearestPending(pose.xM, pose.zM);
+    // nearestPending deja para el final las candidatas a menos de 1 m de una rescatada:
+    // si devuelve una de ellas, todas las pendientes lo están. Puede ser la misma víctima
+    // estimada dos veces, así que se aplaza mientras quede barrido y tiempo de sobra.
+    if (c != nullptr && _tracker.nearRescuedVictim(*c) &&
+        _nextWaypoint < static_cast<int>(_waypoints.size()) &&
+        !mustReturn(elapsed + v::kDeferNearRescuedReserveS)) {
+      const int idx = static_cast<int>(c - &_tracker.candidates()[0]);
+      if (idx != _deferredAnnounced) {
+        _deferredAnnounced = idx;
+        std::cout << std::fixed << std::setprecision(2) << "[MISION] Candidata #" << idx << " ("
+                  << c->x << ", " << c->z
+                  << ") a menos de 1 m de una rescatada: puede ser la misma víctima. Se aplaza"
+                     " y se sigue barriendo."
+                  << std::endl;
+      }
+      c = nullptr;
+    }
+    if (c != nullptr) {
       _target = static_cast<int>(c - &_tracker.candidates()[0]);
       std::cout << std::fixed << std::setprecision(2) << "[MISION] Víctima confirmada en ("
                 << c->x << ", " << c->z << "): voy a por ella."
                 << (_tracker.nearRescuedVictim(*c)
-                        ? " (está a menos de 1 m de una rescatada; no hay otra más lejos)"
+                        ? " (está a menos de 1 m de una rescatada; barrido agotado o poco tiempo)"
                         : "")
                 << std::endl;
       _navigator.setGoalPoint(c->x, c->z, v::kApproachRadiusM, pose);
@@ -333,6 +357,7 @@ private:
     }
     const double dist = std::hypot(_waypoints[_searchLeg].first - pose.xM,
                                    _waypoints[_searchLeg].second - pose.zM);
+    // Punto del tramo alcanzado (con 10 cm de tolerancia extra) o tramo caducado.
     if (dist <= v::kSearchWaypointRadiusM + 0.1 || _timeS - _legStartS > v::kSearchLegTimeoutS) {
       // Extremo lateral: mirar antes de seguir, salvo que el robot ya haya dado
       // una vuelta completa cerca (el giro de 360° de un rescate en esa esquina).
@@ -340,6 +365,7 @@ private:
       for (const auto &p : _fullTurnSpots)
         if (std::hypot(p.first - pose.xM, p.second - pose.zM) < v::kSearchLookSkipRadiusM)
           alreadyLooked = true;
+      // Solo en los extremos laterales (x = ±3,8), no en el punto central (x = 0).
       if (std::fabs(_waypoints[_searchLeg].first) > 0.1 && !alreadyLooked) {
         _looking = true;
         _lookAccum = 0.0;
@@ -360,6 +386,7 @@ private:
     namespace v = robot_config::victims;
     VictimTracker::Candidate &c = _tracker.candidates()[_target];
     const double dist = std::hypot(c.x - pose.xM, c.z - pose.zM);
+    // A 1,25 m (radio de la meta + 10 cm) o con el plan ya agotado (< 5 cm): pasar a ACERCAR.
     if (dist <= v::kApproachRadiusM + 0.1 || _navigator.remainingM(pose) < 0.05) {
       _phase = Phase::kApproach;
       _phaseStartS = _timeS;
@@ -371,6 +398,7 @@ private:
       enter(Phase::kSearch, pose);
       return WheelCommand::stop();
     }
+    // La estimación de la víctima se movió más de 25 cm: actualizar la meta del A*.
     if (std::hypot(c.x - _gotoGoalX, c.z - _gotoGoalZ) > 0.25) {
       _gotoGoalX = c.x;
       _gotoGoalZ = c.z;
@@ -399,7 +427,7 @@ private:
     double frontIr = 1e9;
     for (int i : {0, 1, 14, 15})
       if (snapshot.distanceDetected[i]) frontIr = std::min(frontIr, snapshot.distanceM[i]);
-    const bool touching = frontIr < 0.12;
+    const bool touching = frontIr < 0.12;  // algo delante a < 12 cm: parar aquí
 
     // Demasiado cerca (p. ej. la ida terminó pegada a la víctima): retroceder
     // hasta ~0.8 m antes de girar, para que el giro no la roce.
@@ -407,7 +435,7 @@ private:
       bool rearFree = true;
       for (int i = 4; i <= 11; ++i)
         if (snapshot.distanceDetected[i] && snapshot.distanceM[i] < 0.12) rearFree = false;
-      if (rearFree) return WheelCommand::of(-2.0, -2.0);
+      if (rearFree) return WheelCommand::of(-2.0, -2.0);  // marcha atrás lenta si detrás hay > 12 cm
     }
     if (dist <= v::kStopDistanceM || touching ||
         _timeS - _phaseStartS > v::kApproachTimeoutS) {
@@ -430,8 +458,10 @@ private:
       }
       return WheelCommand::stop();
     }
+    // Víctima desviada más de ~20°: girar en el sitio hacia ella.
     if (std::fabs(err) > 0.35)
       return WheelCommand::of(-2.0 * (err > 0 ? 1 : -1), 2.0 * (err > 0 ? 1 : -1));
+    // Avance directo: más lento en los últimos 20 cm; corrección de rumbo proporcional (ganancia 4).
     const double speed = dist > 1.05 ? 3.0 : 2.0;
     const double turn = std::max(-2.0, std::min(2.0, 4.0 * err));
     return WheelCommand::of(speed - turn, speed + turn);
@@ -533,7 +563,7 @@ private:
     for (int i = 0; i < robot_config::kDistanceSensorCount; ++i) {
       if (!snapshot.distanceDetected[i]) continue;
       _minIrM = std::min(_minIrM, snapshot.distanceM[i]);
-      if (snapshot.distanceM[i] < 0.03 || snapshot.distanceSaturated[i]) near = true;
+      if (snapshot.distanceM[i] < 0.03 || snapshot.distanceSaturated[i]) near = true;  // < 3 cm o saturado
     }
     if (near && !_inNearContact) ++_nearContacts;
     _inNearContact = near;
@@ -663,6 +693,8 @@ private:
   double _phaseStartS = 0.0, _timeS = 0.0, _startTimeS = 0.0;
   double _startX = 0.0, _startZ = 0.0, _startYaw = 0.0, _startTravelledM = 0.0;
   double _maxZ = -1e9, _minZ = 1e9;
+  // _outboundS vale 60 s hasta que termina la ida (estimación para la regla de tiempo);
+  // si la ida no termina, el CSV guarda ese 60 por defecto.
   double _outboundS = 60.0, _returnStartS = 0.0;
   double _goalZ = 8.6;
 
@@ -683,6 +715,7 @@ private:
   double _legStartS = 0.0;
   bool _looking = false;  // vuelta de observación en un extremo del barrido
   double _lookAccum = 0.0, _lookLastYaw = 0.0, _lookStartS = 0.0;
+  int _deferredAnnounced = -1;  // última candidata aplazada avisada en consola
   std::vector<std::pair<double, double>> _fullTurnSpots;  // dónde se completó un giro de rescate
   int _target = -1;
   double _gotoGoalX = 0.0, _gotoGoalZ = 0.0;

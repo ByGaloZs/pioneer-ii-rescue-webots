@@ -30,8 +30,8 @@
 // minGreen: el verde de una víctima es MÁS brillante que el suelo gris (verde ~1.0
 // frente a ~0.46): exigir g >= minGreen descarta el ruido sobre las líneas negras.
 inline bool isVictimGreen(int r, int g, int b, int minGreen = 0) {
-  if (std::max(r, std::max(g, b)) < 12 || g < minGreen) return false;
-  return g > 1.5 * r + 6 && g > 1.5 * b + 6;
+  if (std::max(r, std::max(g, b)) < 12 || g < minGreen) return false;  // píxel casi negro: sin información
+  return g > 1.5 * r + 6 && g > 1.5 * b + 6;  // verde dominante: 1,5 veces el rojo y el azul (+6 de ruido)
 }
 
 // Una observación de víctima: dónde cree la cámara que está el centro del cilindro.
@@ -145,6 +145,7 @@ private:
           // cilindro se proyecta más lejos, en la misma dirección de visión).
           const double dx = o.x - c.x, dz = o.z - c.z, d = std::hypot(dx, dz);
           const double vx = c.x - robotX, vz = c.z - robotZ, vl = std::max(0.05, std::hypot(vx, vz));
+          // "Detrás" = en la misma dirección de visión: coseno del ángulo > 0,8 (< ~37°).
           if (d < v::kShadowRadiusM && (dx * vx + dz * vz) > 0.0 &&
               (dx * vx + dz * vz) / (std::max(0.05, d) * vl) > 0.8)
             return VictimAddResult::kShadow;
@@ -391,6 +392,7 @@ inline void fromSphere(const unsigned char *image, const Pose &pose, int floorBr
       first = (first + kBins - 1) % kBins;
     std::vector<int> group;
     int i = first;
+    // Bins contiguos con verde a distancias parecidas (< 0,7 m) son el mismo cilindro.
     while (count[i] > 0 && !used[i] && std::fabs(nearest[i] - nearest[first]) < 0.7) {
       used[i] = true;
       group.push_back(i);
@@ -411,6 +413,8 @@ inline void fromSphere(const unsigned char *image, const Pose &pose, int floorBr
     // La base debe verse: hacia el robot (centro de la imagen) tiene que haber
     // suelo, no la silueta del propio robot. Si no, el píxel es de más arriba.
     bool baseVisible = true;
+    // Se comprueban 3, 6 y 9 píxeles en dirección al robot, cuya silueta en la imagen
+    // está centrada aproximadamente en (76, 92).
     for (int step = 3; step <= 9 && baseVisible; step += 3) {
       const double dxp = 76.0 - nearestU[best], dyp = 92.0 - nearestV[best];
       const double len = std::max(1.0, std::hypot(dxp, dyp));

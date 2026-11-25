@@ -129,8 +129,12 @@ Si el suelo se ve más oscuro de 25/255, la imagen se descarta.
    (una desde lejos con error y otra de cerca) se "rescataba" dos veces.
 6. Al elegir la siguiente víctima:
    - Una candidata a **menos de 0,6 m** de una rescatada se descarta: dos cilindros de 0,3 m de radio no pueden estar más juntos, así que es la misma.
-   - Las que están a **menos de 1 m** van **al final de la cola**: si hay otra confirmada más lejos, se va primero a por esa. Si no queda otra (dos víctimas
-     reales muy juntas, como en s10), se elige la más alejada de la rescatada, que es la que con más probabilidad es otra víctima.
+   - Las que están a **menos de 1 m** van **al final de la cola**: si hay otra confirmada más lejos, se va primero a por esa. Entre las cercanas se elige la
+     más alejada de la rescatada, que es la que con más probabilidad es otra víctima.
+   - Si la única pendiente está a menos de 1 m de una rescatada, se **aplaza**: el robot sigue barriendo el fondo mientras quede barrido y sobre tiempo
+     (`kDeferNearRescuedReserveS` = 45 s por encima de la regla de vuelta), y solo va a por ella si el barrido se agota o falta tiempo. Puede ser la misma víctima
+     estimada dos veces (pasó en s03 sin cámara frontal, con dos candidatas a 0,69 m) o dos víctimas reales muy juntas (s10, a 0,83 m); aplazarla evita el giro
+     inútil cuando hay tiempo para buscar la otra, y no la pierde si de verdad es otra víctima.
 
 ## 6. El mapa de ocupación
 
@@ -260,7 +264,7 @@ los tiempos y las métricas. El movimiento lo delega en el navegador.
 2. Si **no queda tiempo** → `VUELTA`. "No queda tiempo" significa que
    `tiempo transcurrido + (0,55 × tiempo de ida + 12 s) + 12 s de margen > 240 s`; es decir, se estima que volver cuesta algo más de la mitad que ir
    (porque ya hay mapa) y se deja un margen.
-3. Si hay una **víctima confirmada** pendiente → `IR_A_VICTIMA` hacia la más cercana.
+3. Si hay una **víctima confirmada** pendiente → `IR_A_VICTIMA` hacia la más cercana (salvo si está a menos de 1 m de una rescatada y se aplaza; ver sección 5).
 4. Si no, **barre el pasillo del fondo** (z = 8,9) hacia x = ±3,8 y x = 0; cada tramo caduca a los 30 s. En cada extremo lateral (el robot llega a x ≈ ±3,2) da una
    **vuelta completa en el sitio** para que las cámaras miren la esquina, donde suelen quedar víctimas. No la repite si acaba de dar
    el giro de rescate de 360° a menos de 1 m de ahí. Si acaba el barrido sin víctimas → `VUELTA`.
@@ -286,19 +290,26 @@ El sistema está hecho por **capas**, de la más "inteligente" a la más reactiv
 | Anticipación | Cámara frontal + esférica | Con poca luz se desactivan solas; el robot va más lento y descubre las paredes al tocarlas con los IR |
 | Reacción | IR en el navegador + `SafetyGuard` | No depende de la luz ni del mapa; siempre está |
 
-Por eso el robot completa los mundos casi oscuros (02 y 03), aunque más despacio. La cámara esférica es la que más se nota: sin ella, la ida en s03 y s07 tarda
-un 45 % y un 65 % más.
+Por eso el robot completa los mundos casi oscuros (02 y 03), aunque más despacio. La comparación de variantes (sección 12) mide cuánto aporta cada capa: sin la
+cámara esférica la ida en s03 pasa de 99,5 s a 186,5 s y en s07 de 54,9 s a 159,8 s; sin el mapa, el robot no completa los cuatro mundos con callejones.
 
 ## 12. Resultados
 
-Última tanda de la misión completa en Webots (17-11-2026), un intento por mundo (detalle en [RESULTADOS.md](RESULTADOS.md)):
+Tandas del 24-11-2026, un intento por mundo, con el código final (detalle en [RESULTADOS.md](RESULTADOS.md)):
 
-- **10/10 misiones completas**: los 10 robots volvieron a la salida antes de 240 s y rescataron las dos víctimas.
-- **20/20** rescates verificados contra la posición real de las víctimas: el robot giró siempre a 0,69–0,83 m de una víctima real, y nunca dos veces de la misma.
-- Tiempo total medio **129,4 s** (mínimo 96,1 s en s04, máximo 199,3 s en s03, el más oscuro, con 40,7 s de margen).
+- **Controlador de entrega (tanda A): 10/10 misiones completas** y **20/20 víctimas**, todas por debajo de 240 s. Tiempo total medio **129,9 s** (mínimo 96,1 s en s04,
+  máximo 199,3 s en s03, el más oscuro, con 40,7 s de margen). Rescates verificados visualmente en Webots.
+- **Comparación de variantes** (B, C y D con `timelimit=600`):
+
+| Variante | Misiones completas | Víctimas | Completas en ≤ 240 s |
+|---|---|---|---|
+| A: completo | 10/10 | 20/20 | 10/10 |
+| B: sin cámara frontal (`nocam`) | 10/10 | 20/20 | 10/10 (+43 % de tiempo medio) |
+| C: sin cámara esférica (`nosphere`) | 9/10 | 19/20 | 6/10 |
+| D: sin mapa (`nomap`) | 6/10 | 14/20 | 2/10 |
 
 "Vuelta a tiempo" y "víctimas" se miden por separado: un robot podría volver a tiempo sin víctimas, porque la misión prioriza volver antes de 240 s (sección 9,
-regla de tiempo). La simulación es determinista: repetir la tanda con el mismo código da las mismas cifras.
+regla de tiempo). La simulación es determinista: repetir una ejecución con el mismo código da las mismas cifras.
 
 ## 13. Verlo en directo
 
@@ -329,6 +340,6 @@ marcadas como obstáculo.
 | Diagramas de flujo y dependencias | [DIAGRAMAS.md](DIAGRAMAS.md) |
 | Cada módulo, qué recibe y qué entrega | [ARQUITECTURA.md](ARQUITECTURA.md) |
 | La máquina de estados de navegación en detalle | [NAVEGACION.md](NAVEGACION.md) |
-| Todos los parámetros | [CONFIGURACION.md](CONFIGURACION.md) |
+| Parámetros | [CONFIGURACION.md](CONFIGURACION.md) |
 | Calibración de los sensores | [CALIBRACION.md](CALIBRACION.md) |
 | Resultados y CSV | [RESULTADOS.md](RESULTADOS.md) |
